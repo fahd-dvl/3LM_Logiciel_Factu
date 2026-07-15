@@ -1,0 +1,346 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat    = "cjs"
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum TypeStructure {
+  artisan
+  entreprise
+  association
+  micro_entrepreneur
+}
+
+enum StatutDevis {
+  BROUILLON
+  ENVOYE
+  ACCEPTE
+  REFUSE
+  EXPIRE
+  CONVERTI
+}
+
+enum StatutFacture {
+  BROUILLON
+  ENVOYEE
+  PARTIELLEMENT_PAYEE
+  PAYEE
+  EN_RETARD
+  ANNULEE
+}
+
+enum TypeClient {
+  particulier
+  entreprise
+}
+
+enum MethodePaiement {
+  CB
+  CHEQUE
+  VIREMENT
+  ESPECES
+}
+enum TypeProduitService {
+  PRODUIT
+  SERVICE
+}
+
+model Utilisateur {
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  mot_de_passe_hash  String
+  prenom             String?
+  nom                String?
+  telephone          String?
+  role               Role      @default(user)
+  actif              Boolean   @default(true)
+  date_creation      DateTime  @default(now())
+  derniere_connexion DateTime?
+
+  // Relations
+  entreprise        Entreprise?
+  clients           Client[]
+  categories        Categorie[]
+  produits          ProduitService[]
+  devis             Devis[]
+  factures          Facture[]
+  refreshTokens     RefreshToken[]
+
+  @@map("utilisateurs")
+}
+
+model Pays {
+  id         Int    @id @default(autoincrement())
+  code_iso   String @unique @db.VarChar(3)
+  nom        String @db.VarChar(100)
+  devise     String @db.VarChar(10)
+
+  // Relations
+  entreprises      Entreprise[]
+  mentionsLegales  MentionLegale[]
+  clients          Client[]
+  tauxTva          TauxTva[]
+  devis            Devis[]
+  factures         Facture[]
+
+  @@map("pays")
+}
+
+model Entreprise {
+  id                 Int             @id @default(autoincrement())
+  utilisateur_id     Int             @unique
+  type_structure     TypeStructure
+  nom_entreprise     String?
+  matricule_fiscal   String          @unique @db.VarChar(20)
+  siret              String?         @unique @db.VarChar(14) // SIRET de l'entreprise émettrice
+  adresse            String
+  code_postal        String?
+  ville              String
+  pays_id            Int
+  representant_legal String?
+
+  // Relations
+  utilisateur Utilisateur @relation(fields: [utilisateur_id], references: [id])
+  pays        Pays        @relation(fields: [pays_id], references: [id])
+  devis       Devis[]
+  facture     Facture[]
+
+  @@map("entreprise")
+}
+
+model MentionLegale {
+  id       Int    @id @default(autoincrement())
+  pays_id  Int
+  type     String @db.VarChar(50)
+  texte    String
+
+  // Relations
+  pays Pays @relation(fields: [pays_id], references: [id])
+
+  @@map("mention_legale")
+}
+
+model Client {
+  id              Int            @id @default(autoincrement())
+  utilisateur_id  Int
+  type            TypeClient
+  nom             String         @db.VarChar(100)
+  prenom          String?        @db.VarChar(100)
+  email           String?        @db.VarChar(150)
+  telephone       String?        @db.VarChar(20)
+  
+  // Adresse de contact
+  adresse         String?
+  code_postal     String?        @db.VarChar(10)
+  ville           String?        @db.VarChar(100)
+  pays_id         Int
+  
+  // Informations légales pour facturation
+  siret           String?        @unique @db.VarChar(14) // SIRET du client (si entreprise)
+  matricule_fiscal String?       @db.VarChar(20) // Matricule fiscal / TVA intracommunautaire
+  adresse_legale  String?        // Adresse légale du client (si différente de l'adresse de contact)
+  raison_sociale  String?        @db.VarChar(200) // Raison sociale (si personne morale)
+  
+  note            String?
+  date_creation   DateTime       @default(now())
+
+  // Relations
+  utilisateur Utilisateur @relation(fields: [utilisateur_id], references: [id])
+  pays        Pays        @relation(fields: [pays_id], references: [id])
+  devis       Devis[]
+  facture     Facture[]
+
+  @@map("client")
+}
+
+model Categorie {
+  id               Int      @id @default(autoincrement())
+  utilisateur_id   Int
+  nom              String   @db.VarChar(100)
+  description      String?
+  parent_id        Int?     // Pour créer des sous-catégories
+  
+  // Relations
+  utilisateur Utilisateur   @relation(fields: [utilisateur_id], references: [id])
+  parent      Categorie?    @relation("CategorieParent", fields: [parent_id], references: [id])
+  enfants     Categorie[]   @relation("CategorieParent")
+  produits     ProduitService[]
+
+  @@map("categorie")
+}
+
+model TauxTva {
+  id         Int      @id @default(autoincrement())
+  pays_id    Int
+  taux       Decimal  @db.Decimal(5, 2)
+  libelle    String   @db.VarChar(50)
+  date_debut DateTime
+  date_fin   DateTime?
+
+  // Relations
+  pays            Pays            @relation(fields: [pays_id], references: [id])
+  produit_service ProduitService[]
+
+  @@map("taux_tva")
+}
+
+model ProduitService {
+  id               Int      @id @default(autoincrement())
+  utilisateur_id   Int
+  nom              String   @db.VarChar(150)
+  description      String?
+  prix_unitaire_ht Decimal  @db.Decimal(15, 2) @default(0.00)
+  unite            String   @db.VarChar(20) @default("pièce")
+  taux_tva_id      Int
+  categorie_id     Int?     // Référence vers la catégorie
+  actif            Boolean  @default(true)
+  type             TypeProduitService
+
+  // Relations
+  utilisateur      Utilisateur    @relation(fields: [utilisateur_id], references: [id])
+  taux_tva         TauxTva        @relation(fields: [taux_tva_id], references: [id])
+  categorie        Categorie?     @relation(fields: [categorie_id], references: [id])
+  facture_ligne    FactureLigne[]
+  devis_ligne      DevisLigne[]
+
+  @@map("produit_service")
+}
+
+model Devis {
+  id               Int            @id @default(autoincrement())
+  utilisateur_id   Int
+  entreprise_id    Int
+  client_id        Int
+  pays_id          Int
+  numero           String         @unique @db.VarChar(50)
+  date_creation    DateTime       @default(now())
+  date_validite    DateTime
+  statut           StatutDevis    @default(BROUILLON)
+  total_ht         Decimal        @db.Decimal(15, 2) @default(0.00)
+  total_tva        Decimal        @db.Decimal(15, 2) @default(0.00)
+  total_ttc        Decimal        @db.Decimal(15, 2) @default(0.00)
+  devise           String         @db.VarChar(10)
+
+  // Relations
+  utilisateur Utilisateur @relation(fields: [utilisateur_id], references: [id])
+  entreprise  Entreprise  @relation(fields: [entreprise_id], references: [id])
+  client      Client      @relation(fields: [client_id], references: [id])
+  pays        Pays        @relation(fields: [pays_id], references: [id])
+  devis_ligne DevisLigne[]
+  facture     Facture[]
+
+  @@map("devis")
+}
+
+model DevisLigne {
+  id               Int      @id @default(autoincrement())
+  devis_id         Int
+  produit_id       Int?
+  description      String   @db.VarChar(255)
+  quantite         Decimal  @db.Decimal(10, 2)
+  prix_unitaire_ht Decimal  @db.Decimal(15, 2)
+  taux_tva         Decimal  @db.Decimal(5, 2)
+
+  // Relations
+  devis            Devis          @relation(fields: [devis_id], references: [id], onDelete: Cascade)
+  produit_service  ProduitService? @relation(fields: [produit_id], references: [id], onDelete: SetNull)
+
+  @@map("devis_ligne")
+}
+
+model Facture {
+  id                 Int            @id @default(autoincrement())
+  utilisateur_id     Int
+  entreprise_id      Int
+  client_id          Int
+  pays_id            Int
+  devis_id           Int?
+  numero             String         @unique @db.VarChar(50)
+  date_emission      DateTime       @default(now())
+  date_echeance      DateTime
+  statut             StatutFacture  @default(BROUILLON)
+  total_ht           Decimal        @db.Decimal(15, 2) @default(0.00)
+  total_tva          Decimal        @db.Decimal(15, 2) @default(0.00)
+  total_ttc          Decimal        @db.Decimal(15, 2) @default(0.00)
+  devise             String         @db.VarChar(10)
+
+  // Relations
+  utilisateur   Utilisateur  @relation(fields: [utilisateur_id], references: [id])
+  entreprise    Entreprise   @relation(fields: [entreprise_id], references: [id])
+  client        Client       @relation(fields: [client_id], references: [id])
+  pays          Pays         @relation(fields: [pays_id], references: [id])
+  devis         Devis?       @relation(fields: [devis_id], references: [id])
+  facture_ligne FactureLigne[]
+  paiement      Paiement[]
+
+  @@map("facture")
+}
+
+model FactureLigne {
+  id               Int      @id @default(autoincrement())
+  facture_id       Int
+  produit_id       Int?
+  description      String   @db.VarChar(255)
+  quantite         Decimal  @db.Decimal(10, 2)
+  prix_unitaire_ht Decimal  @db.Decimal(15, 2)
+  taux_tva         Decimal  @db.Decimal(5, 2)
+
+  // Relations
+  facture          Facture        @relation(fields: [facture_id], references: [id], onDelete: Cascade)
+  produit_service  ProduitService? @relation(fields: [produit_id], references: [id], onDelete: SetNull)
+
+  @@map("facture_ligne")
+}
+
+model Paiement {
+  id            Int               @id @default(autoincrement())
+  facture_id    Int
+  montant       Decimal           @db.Decimal(15, 2)
+  date_paiement DateTime          @default(now())
+  methode       MethodePaiement
+  reference     String?           @db.VarChar(100)
+
+  // Relations
+  facture Facture @relation(fields: [facture_id], references: [id])
+
+  @@map("paiement")
+}
+
+model RefreshToken {
+  id              Int         @id @default(autoincrement())
+  token           String      @unique
+  utilisateur_id  Int
+  utilisateur     Utilisateur @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+  //                                                                    ↑ Cascade (avec C majuscule)
+  expires_at      DateTime
+  revoked         Boolean     @default(false)
+  revoked_at      DateTime?
+  revoked_reason  String?     // "logout", "password_change", "admin_revoke", "expired"
+  last_used_at    DateTime?
+  user_agent      String?
+  ip_address      String?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  @@index([utilisateur_id])
+  @@index([token])
+  @@index([expires_at])
+  @@map("refresh_token")
+}
