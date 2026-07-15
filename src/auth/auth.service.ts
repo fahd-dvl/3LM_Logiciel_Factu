@@ -5,12 +5,12 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { UserService } from '../user/user.service';
+
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh-token.dto';
+
 import * as bcrypt from 'bcrypt';
-import { Request } from 'express';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -58,7 +58,7 @@ export class AuthService {
           prenom: true,
           role: true,
           actif: true,
-          created_at: true,
+          date_creation: true,
         },
       });
 
