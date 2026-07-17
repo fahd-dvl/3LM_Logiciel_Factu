@@ -17,8 +17,6 @@ import { UpdateDevisDto } from './dto/update-devis.dto';
 import { ChangeStatutDevisDto } from './dto/change-statut-devis.dto';
 import { StatutDevis } from 'generated/prisma/browser';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-// import { AuthGuard } from '../auth/auth.guard';
-// import { CurrentUser } from '../auth/current-user.decorator';
 
 @Controller('devis')
 // @UseGuards(AuthGuard)

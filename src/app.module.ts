@@ -11,7 +11,12 @@ import { ProduitServiceModule } from './produit-service/produit-service.module';
 import { ClientModule } from './client/client.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ClientController } from './client/client.controller';
+import { ProduitServiceController } from './produit-service/produit-service.controller';
+import { DevisController } from './devis/devis.controller';
+import { AuthController } from './auth/auth.controller';
 import { DevisModule } from './devis/devis.module';
+import { ClientService } from './client/client.service';
 
 @Module({
   imports: [
@@ -22,14 +27,19 @@ import { DevisModule } from './devis/devis.module';
 
     // Modules
     PrismaModule,
-    JwtModule.register({}),
-    // ← Authentification
-    ClientModule, // ← Gestion des clients
+    JwtModule,
+    DevisModule,
+    ClientModule,
     ProduitServiceModule,
     AuthModule,
-    DevisModule, // ← Gestion des produits/services
   ],
-  controllers: [AppController],
+  controllers: [
+    AppController,
+    ClientController,
+    ProduitServiceController,
+    DevisController,
+    AuthController,
+  ],
   providers: [AppService],
 })
 export class AppModule {}

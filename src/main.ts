@@ -2,7 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
-
+import { DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -19,6 +20,17 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Configuration Swagger minimale
+  const config = new DocumentBuilder()
+    .setTitle('API Facturation')
+    .setDescription('API de gestion des devis et factures')
+    .setVersion('1.0')
+    .addBearerAuth() // Pour JWT
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   // Enable CORS (optional, for frontend development)
   app.enableCors({
