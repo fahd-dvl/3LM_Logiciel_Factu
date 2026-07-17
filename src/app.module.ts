@@ -11,6 +11,7 @@ import { ProduitServiceModule } from './produit-service/produit-service.module';
 import { ClientModule } from './client/client.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
+import { DevisModule } from './devis/devis.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { JwtModule } from '@nestjs/jwt';
     // ← Authentification
     ClientModule, // ← Gestion des clients
     ProduitServiceModule,
-    AuthModule, // ← Gestion des produits/services
+    AuthModule,
+    DevisModule, // ← Gestion des produits/services
   ],
   controllers: [AppController],
   providers: [AppService],

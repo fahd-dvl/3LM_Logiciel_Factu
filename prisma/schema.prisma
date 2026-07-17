@@ -62,6 +62,11 @@ enum TypeProduitService {
   SERVICE
 }
 
+enum TypeDocument {
+  DEVIS
+  FACTURE
+}
+
 model Utilisateur {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
@@ -82,6 +87,7 @@ model Utilisateur {
   devis             Devis[]
   factures          Facture[]
   refreshTokens     RefreshToken[]
+  compteursNumerotation CompteurNumerotation[]
 
   @@map("utilisateurs")
 }
@@ -231,7 +237,8 @@ model Devis {
   pays_id          Int
   numero           String         @unique @db.VarChar(50)
   date_creation    DateTime       @default(now())
-  date_validite    DateTime
+  date_validite    DateTime 
+  date_conversion_devis  DateTime? 
   statut           StatutDevis    @default(BROUILLON)
   total_ht         Decimal        @db.Decimal(15, 2) @default(0.00)
   total_tva        Decimal        @db.Decimal(15, 2) @default(0.00)
@@ -257,6 +264,11 @@ model DevisLigne {
   quantite         Decimal  @db.Decimal(10, 2)
   prix_unitaire_ht Decimal  @db.Decimal(15, 2)
   taux_tva         Decimal  @db.Decimal(5, 2)
+
+   // Montants calculés (dénormalisés, mis à jour à chaque save de la ligne)
+  montant_ht       Decimal  @db.Decimal(15, 2) @default(0.00)
+  montant_tva      Decimal  @db.Decimal(15, 2) @default(0.00)
+  montant_ttc      Decimal  @db.Decimal(15, 2) @default(0.00)
 
   // Relations
   devis            Devis          @relation(fields: [devis_id], references: [id], onDelete: Cascade)
@@ -302,6 +314,11 @@ model FactureLigne {
   prix_unitaire_ht Decimal  @db.Decimal(15, 2)
   taux_tva         Decimal  @db.Decimal(5, 2)
 
+   // Montants calculés (dénormalisés, mis à jour à chaque save de la ligne)
+  montant_ht       Decimal  @db.Decimal(15, 2) @default(0.00)
+  montant_tva      Decimal  @db.Decimal(15, 2) @default(0.00)
+  montant_ttc      Decimal  @db.Decimal(15, 2) @default(0.00)
+
   // Relations
   facture          Facture        @relation(fields: [facture_id], references: [id], onDelete: Cascade)
   produit_service  ProduitService? @relation(fields: [produit_id], references: [id], onDelete: SetNull)
@@ -343,4 +360,18 @@ model RefreshToken {
   @@index([token])
   @@index([expires_at])
   @@map("refresh_token")
+}
+
+model CompteurNumerotation {
+  id             Int          @id @default(autoincrement())
+  utilisateur_id Int
+  type_document  TypeDocument
+  annee          Int
+  dernier_numero Int          @default(0)
+
+  utilisateur Utilisateur @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  // Un seul compteur par utilisateur/type/année
+  @@unique([utilisateur_id, type_document, annee])
+  @@map("compteur_numerotation")
 }

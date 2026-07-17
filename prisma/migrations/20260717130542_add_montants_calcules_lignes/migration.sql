@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "devis_ligne" ADD COLUMN     "montant_ht" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+ADD COLUMN     "montant_ttc" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+ADD COLUMN     "montant_tva" DECIMAL(15,2) NOT NULL DEFAULT 0.00;
+
+-- AlterTable
+ALTER TABLE "facture_ligne" ADD COLUMN     "montant_ht" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+ADD COLUMN     "montant_ttc" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+ADD COLUMN     "montant_tva" DECIMAL(15,2) NOT NULL DEFAULT 0.00;
