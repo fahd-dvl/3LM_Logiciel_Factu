@@ -8,45 +8,65 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProduitServiceDto } from './dto/create-produit-service.dto';
 import { TypeProduitService } from 'generated/prisma/browser';
 import { UpdateProduitServiceDto } from './dto/update-produit-service.dto';
-import { DevisLigne } from 'generated/prisma/browser';
-import { isInstance } from 'class-validator';
 
 @Injectable()
 export class ProduitServiceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllProduits() {
+  async findAll(userId: number) {
     return this.prisma.produitService.findMany({
-      where: { type: TypeProduitService.PRODUIT },
-      include: { categorie: true, taux_tva: true },
+      where: { utilisateur_id: userId },
     });
   }
 
-  async findAllServices() {
+  async findAllProduits(userId: number) {
     return this.prisma.produitService.findMany({
-      where: { type: TypeProduitService.SERVICE },
+      where: { type: TypeProduitService.PRODUIT, utilisateur_id: userId },
       include: { categorie: true, taux_tva: true },
     });
   }
 
-  async findProduitById(id: number) {
-    return this.prisma.produitService.findFirst({
-      where: {
-        id,
-        type: TypeProduitService.PRODUIT,
-      },
+  async findAllServices(userId: number) {
+    return this.prisma.produitService.findMany({
+      where: { type: TypeProduitService.SERVICE, utilisateur_id: userId },
       include: { categorie: true, taux_tva: true },
     });
   }
 
-  async findServiceById(id: number) {
-    return this.prisma.produitService.findFirst({
-      where: {
-        id,
-        type: TypeProduitService.SERVICE,
-      },
-      include: { categorie: true, taux_tva: true },
+  async findById(id: number, userId: number) {
+    return this.prisma.produitService.findMany({
+      where: { id: id, utilisateur_id: userId },
+      include: { taux_tva: true, categorie: true },
     });
+  }
+
+  async searchProduitsServices(searchTerm: string, userId: number) {
+    try {
+      const produits = await this.prisma.produitService.findMany({
+        where: {
+          utilisateur_id: userId,
+          OR: [
+            { nom: { contains: searchTerm, mode: 'insensitive' } },
+            { description: { contains: searchTerm, mode: 'insensitive' } },
+            { unite: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          categorie: true,
+          taux_tva: true,
+        },
+        orderBy: {
+          nom: 'asc',
+        },
+      });
+
+      return produits;
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Erreur lors de la recherche des produits/services: ' +
+          (error instanceof Error ? error.message : 'Erreur inconnue'),
+      );
+    }
   }
 
   async createProduitService(

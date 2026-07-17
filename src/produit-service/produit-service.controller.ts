@@ -6,45 +6,57 @@ import {
   Delete,
   Param,
   Put,
+  Query,
   ParseIntPipe,
 } from '@nestjs/common';
 import { ProduitServiceService } from './produit-service.service';
 import { CreateProduitServiceDto } from './dto/create-produit-service.dto';
-import HttpCode from 'http-status-codes';
 import { UpdateProduitServiceDto } from './dto/update-produit-service.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('produit-service')
 export class ProduitServiceController {
   constructor(private readonly produitServiceService: ProduitServiceService) {}
 
+  @Get()
+  async findAll(@CurrentUser() user: any) {
+    return (this, this.produitServiceService.findAll(user.id));
+  }
+
   @Get('produits')
-  async findAllProduits() {
-    return this.produitServiceService.findAllProduits();
+  async findAllProduits(@CurrentUser() user: any) {
+    return this.produitServiceService.findAllProduits(user.id);
   }
 
   @Get('services')
-  async findAllServices() {
-    return this.produitServiceService.findAllServices();
+  async findAllServices(@CurrentUser() user: any) {
+    return this.produitServiceService.findAllServices(user.id);
   }
 
-  @Get('produits/:id')
-  async findProduitById(id: number) {
-    return this.produitServiceService.findProduitById(id);
+  @Get('search')
+  search(@Query('q') searchTerm: string, @CurrentUser() user: any) {
+    return this.produitServiceService.searchProduitsServices(
+      searchTerm,
+      user.id,
+    );
   }
 
-  @Get('services/:id')
-  async findServiceById(id: number) {
-    return this.produitServiceService.findServiceById(id);
+  @Get(':id')
+  async findById(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.produitServiceService.findById(id, user.id);
   }
 
   @Post()
   async createProduitService(
     @Body() createProduitServiceDto: CreateProduitServiceDto,
+    @CurrentUser() user: any,
   ) {
-    const userId = 1;
     return this.produitServiceService.createProduitService(
       createProduitServiceDto,
-      userId,
+      user.id,
     );
   }
 
@@ -52,25 +64,25 @@ export class ProduitServiceController {
   async updateProduitService(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProduitServiceDto: UpdateProduitServiceDto,
+    @CurrentUser() user: any,
   ) {
-    const userId = 1;
     return this.produitServiceService.updateProduitService(
       id,
       updateProduitServiceDto,
-      userId,
+      user.id,
     );
   }
 
   @Delete(':id')
   async deleteProduitService(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateProduitService: UpdateProduitServiceDto,
+
+    @CurrentUser() user: any,
   ) {
-    const userId = 1;
     return this.produitServiceService.deleteProduitService(
       id,
 
-      userId,
+      user.id,
     );
   }
 }

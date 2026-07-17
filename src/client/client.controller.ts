@@ -10,22 +10,27 @@ import {
   Get,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateClientDto } from './dto/create-client.dto';
 import { ClientService } from './client.service';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 @Controller('client')
+@UseGuards(JwtAuthGuard)
 export class ClientController {
   constructor(private clientService: ClientService) {}
 
   //Create
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createClient(@Body() createClientDto: CreateClientDto) {
-    const userId = 1;
-    return this.clientService.createClient(createClientDto, userId);
+  async createClient(
+    @Body() createClientDto: CreateClientDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.clientService.createClient(createClientDto, user.id);
   }
 
   //Update
@@ -34,41 +39,45 @@ export class ClientController {
   async updateClient(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateClientDto: UpdateClientDto,
+    @CurrentUser() user: any,
   ) {
-    const userId = 1;
-    return this.clientService.updateClient(id, updateClientDto, userId);
+    return this.clientService.updateClient(id, updateClientDto, user.id);
   }
 
   //Read
   @Get()
-  async findAll() {
-    const userId = 1;
-    return this.clientService.findAll(userId);
-  }
-
-  @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const userId = 1;
-    return this.clientService.findOne(id, userId);
-  }
-
-  @Get('type/:type')
-  async findByType(@Param('type') type: string) {
-    const userId = 1;
-    return this.clientService.findByType(type, userId);
+  async findAll(@CurrentUser() user: any) {
+    return this.clientService.findAll(user.id);
   }
 
   @Get('search')
-  async searchClients(@Query('q') searchTerm: string) {
-    const userId = 1;
-    return this.clientService.searchClients(searchTerm, userId);
+  async searchClients(
+    @Query('q') searchTerm: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.clientService.searchClients(searchTerm, user.id);
+  }
+
+  @Get('type/:type')
+  async findByType(@Param('type') type: string, @CurrentUser() user: any) {
+    return this.clientService.findByType(type, user.id);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.clientService.findOne(id, user.id);
   }
 
   //Delete
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteClient(@Param('id', ParseIntPipe) id: number) {
-    const userId = 1;
-    return this.clientService.deleteClient(id, userId);
+  async deleteClient(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.clientService.deleteClient(id, user.id);
   }
 }

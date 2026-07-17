@@ -1,36 +1,25 @@
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  MaxLength,
-  IsOptional,
-  IsEnum,
-} from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
-  @MaxLength(255)
   email: string;
 
   @IsString()
   @MinLength(8)
-  @MaxLength(100)
   password: string;
 
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  nom: string;
-
-  @IsString()
   @IsOptional()
-  @MaxLength(100)
+  @IsString()
+  nom?: string;
+
+  @IsOptional()
+  @IsString()
   prenom?: string;
 
-  constructor(email, password, nom, prenom) {
+  constructor(email: string, password: string, nom: string, prenom: string) {
     this.email = email;
     this.password = password;
     this.nom = nom;
-    this.prenom;
+    this.prenom = prenom;
   }
 }
