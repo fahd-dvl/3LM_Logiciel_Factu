@@ -17,6 +17,11 @@ import { DevisController } from './devis/devis.controller';
 import { AuthController } from './auth/auth.controller';
 import { DevisModule } from './devis/devis.module';
 import { ClientService } from './client/client.service';
+import { FactureService } from './facture/facture.service';
+import { FactureController } from './facture/facture.controller';
+import { FactureModule } from './facture/facture.module';
+import { CalculService } from './common/services/calcul.service';
+import { NumerotationService } from './common/services/numerotation.service';
 
 @Module({
   imports: [
@@ -32,6 +37,7 @@ import { ClientService } from './client/client.service';
     ClientModule,
     ProduitServiceModule,
     AuthModule,
+    FactureModule,
   ],
   controllers: [
     AppController,
@@ -39,7 +45,8 @@ import { ClientService } from './client/client.service';
     ProduitServiceController,
     DevisController,
     AuthController,
+    FactureController,
   ],
-  providers: [AppService],
+  providers: [AppService, FactureService, CalculService, NumerotationService],
 })
 export class AppModule {}
