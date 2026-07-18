@@ -22,6 +22,9 @@ import { FactureController } from './facture/facture.controller';
 import { FactureModule } from './facture/facture.module';
 import { CalculService } from './common/services/calcul.service';
 import { NumerotationService } from './common/services/numerotation.service';
+import { PaiementController } from './paiement/paiement.controller';
+import { PaiementService } from './paiement/paiement.service';
+import { PaiementModule } from './paiement/paiement.module';
 
 @Module({
   imports: [
@@ -38,6 +41,7 @@ import { NumerotationService } from './common/services/numerotation.service';
     ProduitServiceModule,
     AuthModule,
     FactureModule,
+    PaiementModule,
   ],
   controllers: [
     AppController,
@@ -46,7 +50,8 @@ import { NumerotationService } from './common/services/numerotation.service';
     DevisController,
     AuthController,
     FactureController,
+    PaiementController,
   ],
-  providers: [AppService, FactureService, CalculService, NumerotationService],
+  providers: [AppService, FactureService, CalculService, NumerotationService, PaiementService],
 })
 export class AppModule {}

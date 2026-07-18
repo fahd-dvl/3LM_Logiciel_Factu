@@ -15,6 +15,8 @@ import {
   estSupprimableFacture,
 } from './facture-statut.machine';
 import { StatutFacture } from 'generated/prisma/browser';
+import { Decimal } from '@prisma/client/runtime/index-browser';
+import { Prisma } from 'generated/prisma/browser';
 
 const DELAI_PAIEMENT_DEFAUT_JOURS = 30;
 
@@ -254,12 +256,11 @@ export class FactureService {
     });
   }
 
-  /**
-   * Recalcule le statut d'une facture en fonction du total payé.
-   * Sera appelé par le futur PaiementService après chaque paiement enregistré.
-   */
-  async recalculerStatutPaiement(id: number) {
-    const facture = await this.prisma.facture.findUnique({
+  async recalculerStatutPaiement(
+    id: number,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const facture = await client.facture.findUnique({
       where: { id },
       include: { paiement: true },
     });
@@ -274,19 +275,21 @@ export class FactureService {
 
     const totalPaye = facture.paiement.reduce(
       (acc, p) => acc.plus(p.montant),
-      this.calculService.calculerTotaux([]).total_ht.constructor(0),
+      new Decimal(0),
     );
-
     let nouveauStatut: StatutFacture = facture.statut;
 
     if (totalPaye.gte(facture.total_ttc)) {
       nouveauStatut = 'PAYEE';
     } else if (totalPaye.gt(0)) {
       nouveauStatut = 'PARTIELLEMENT_PAYEE';
+    } else {
+      nouveauStatut =
+        facture.statut === 'PARTIELLEMENT_PAYEE' ? 'ENVOYEE' : facture.statut;
     }
 
     if (nouveauStatut !== facture.statut) {
-      return this.prisma.facture.update({
+      return client.facture.update({
         where: { id },
         data: { statut: nouveauStatut },
       });

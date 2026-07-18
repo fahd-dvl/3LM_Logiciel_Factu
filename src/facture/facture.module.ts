@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-import { CalculService } from 'src/common/services/calcul.service';
-import { NumerotationService } from 'src/common/services/numerotation.service';
+import { FactureService } from './facture.service';
+import { CommonModule } from 'src/common/common.module';
 
 @Module({
-  providers: [CalculService, NumerotationService],
+  imports: [CommonModule],
+  providers: [FactureService],
+  exports: [FactureService],
 })
 export class FactureModule {}
