@@ -1,11 +1,14 @@
 import {
+  IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   MaxLength,
   Min,
 } from 'class-validator';
+import { TypeLigne } from 'generated/prisma/browser';
 
 export class CreateDevisLigneDto {
   @IsOptional()
@@ -13,29 +16,19 @@ export class CreateDevisLigneDto {
   produit_id?: number;
 
   @IsString()
-  @MaxLength(255)
+  @MaxLength(2000)
   description: string;
 
   @IsPositive()
   quantite: number;
 
-  @Min(0)
+  @IsNumber({ maxDecimalPlaces: 4 })
   prix_unitaire_ht: number;
 
   @Min(0)
   taux_tva: number;
 
-  constructor(
-    produit_id: number,
-    description: string,
-    quantite: number,
-    prix_unitaire_ht: number,
-    taux_tva: number,
-  ) {
-    this.produit_id = produit_id;
-    this.description = description;
-    this.quantite = quantite;
-    this.prix_unitaire_ht = prix_unitaire_ht;
-    this.taux_tva = taux_tva;
-  }
+  @IsOptional()
+  @IsEnum(TypeLigne)
+  type_ligne?: TypeLigne;
 }

@@ -26,15 +26,7 @@ export class DevisService {
       TypeDocument.DEVIS,
     );
 
-    const lignesCalculees = dto.lignes.map((ligne) => {
-      const montants = this.calculService.calculerLigne(
-        ligne.quantite,
-        ligne.prix_unitaire_ht,
-        ligne.taux_tva,
-      );
-      return { ...ligne, ...montants };
-    });
-
+    const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
     const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
     return this.prisma.devis.create({
@@ -90,14 +82,7 @@ export class DevisService {
 
     // Si les lignes sont fournies, on les recrée entièrement et recalcule les totaux
     if (dto.lignes) {
-      const lignesCalculees = dto.lignes.map((ligne) => {
-        const montants = this.calculService.calculerLigne(
-          ligne.quantite,
-          ligne.prix_unitaire_ht,
-          ligne.taux_tva,
-        );
-        return { ...ligne, ...montants };
-      });
+      const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
       const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
       return this.prisma.devis.update({

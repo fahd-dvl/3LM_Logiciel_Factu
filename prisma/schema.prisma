@@ -67,6 +67,12 @@ enum TypeDocument {
   FACTURE
 }
 
+enum TypeLigne {
+  PRODUIT
+  SERVICE
+  REMISE
+}
+
 model Utilisateur {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
@@ -260,10 +266,11 @@ model DevisLigne {
   id               Int      @id @default(autoincrement())
   devis_id         Int
   produit_id       Int?
-  description      String   @db.VarChar(255)
+  description      String  
   quantite         Decimal  @db.Decimal(10, 2)
-  prix_unitaire_ht Decimal  @db.Decimal(15, 2)
+  prix_unitaire_ht Decimal  @db.Decimal(15, 4)
   taux_tva         Decimal  @db.Decimal(5, 2)
+  type_ligne       TypeLigne @default(PRODUIT)
 
    // Montants calculés (dénormalisés, mis à jour à chaque save de la ligne)
   montant_ht       Decimal  @db.Decimal(15, 2) @default(0.00)
@@ -309,10 +316,11 @@ model FactureLigne {
   id               Int      @id @default(autoincrement())
   facture_id       Int
   produit_id       Int?
-  description      String   @db.VarChar(255)
+  description      String    
   quantite         Decimal  @db.Decimal(10, 2)
-  prix_unitaire_ht Decimal  @db.Decimal(15, 2)
+  prix_unitaire_ht Decimal  @db.Decimal(15, 4)
   taux_tva         Decimal  @db.Decimal(5, 2)
+  type_ligne       TypeLigne @default(PRODUIT)
 
    // Montants calculés (dénormalisés, mis à jour à chaque save de la ligne)
   montant_ht       Decimal  @db.Decimal(15, 2) @default(0.00)

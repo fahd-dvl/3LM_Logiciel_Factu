@@ -32,20 +32,4 @@ export class CreateDevisDto {
   @ValidateNested({ each: true })
   @Type(() => CreateDevisLigneDto)
   lignes: CreateDevisLigneDto[];
-
-  constructor(
-    entreprise_id: number,
-    client_id: number,
-    pays_id: number,
-    date_validite: string,
-    devise: string,
-    lignes: CreateDevisLigneDto[],
-  ) {
-    this.entreprise_id = entreprise_id;
-    this.client_id = client_id;
-    this.pays_id = pays_id;
-    this.date_validite = date_validite;
-    this.devise = devise;
-    this.lignes = lignes;
-  }
 }

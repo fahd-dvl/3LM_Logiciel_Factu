@@ -1,16 +1,17 @@
-# Logi Factu 3LM - Backend
+# 📋 Logi Factu 3LM - Backend
 
-Backend API for the Logi Factu 3LM invoice and client management system.
+> Backend API for the Logi Factu 3LM invoice and client management system.
+
+---
 
 ## 🖥️ How to Open This Project on Your PC
 
-### Method 1: Using VS Code
 
-1. Open **VS Code**
 
+1. Open the project in  **VS Code**
 2. In terminal do:
-
    cd backend
+
 
 ⚙️ Environment Setup
 Create a .env file in the root of the backend folder:
@@ -23,28 +24,39 @@ JWT_REFRESH_SECRET="your_refresh_secret_here"
 JWT_REFRESH_EXPIRES_IN="7d"
 REFRESH_TOKEN_DAYS=7
 
-📦 Installation
 
+📦 Installation
 npm install
 
-# Run Prisma migrations
-
+Database Setup
 npx prisma migrate dev
-
-# Generate Prisma client
-
 npx prisma generate
 
+
 🚀 Running the Application
-
-# Development mode (with hot reload)
-
 npm run start:dev
 
-# Production mode
 
-npm run start:prod
 
-# Swagger to visualize endpoints:
+📝 Swagger API Documentation
+Open in your browser:
 
-Use this url in browser:http://localhost:3001/api/docs
+text
+http://localhost:3001/api/docs
+
+
+
+
+
+
+🔧 Technologies
+NestJS
+
+Prisma
+
+PostgreSQL
+
+JWT
+
+Swagger
+
