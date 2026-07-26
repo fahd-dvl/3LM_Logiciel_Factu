@@ -28,21 +28,18 @@ export class FactureService {
     private readonly numerotationService: NumerotationService,
   ) {}
 
+  /**
+   * Crée une nouvelle facture à partir d'un DTO.
+   * Utilise preparerLignes() pour valider les types de ligne et les prix négatifs.
+   */
   async creer(utilisateurId: number, dto: CreateFactureDto) {
     const numero = await this.numerotationService.genererNumero(
       utilisateurId,
       TypeDocument.FACTURE,
     );
 
-    const lignesCalculees = dto.lignes.map((ligne) => {
-      const montants = this.calculService.calculerLigne(
-        ligne.quantite,
-        ligne.prix_unitaire_ht,
-        ligne.taux_tva,
-      );
-      return { ...ligne, ...montants };
-    });
-
+    // ✅ CORRECTION : Utiliser preparerLignes() pour la validation
+    const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
     const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
     return this.prisma.facture.create({
@@ -99,6 +96,19 @@ export class FactureService {
       const dateEcheance = new Date();
       dateEcheance.setDate(dateEcheance.getDate() + delai);
 
+      // ✅ CORRECTION : Ajouter type_ligne dans la conversion
+      const lignesPreparees = devis.devis_ligne.map((ligne) => ({
+        produit_id: ligne.produit_id,
+        description: ligne.description,
+        quantite: ligne.quantite,
+        prix_unitaire_ht: ligne.prix_unitaire_ht,
+        taux_tva: ligne.taux_tva,
+        type_ligne: ligne.type_ligne || 'PRODUIT', // ✅ AJOUT
+        montant_ht: ligne.montant_ht,
+        montant_tva: ligne.montant_tva,
+        montant_ttc: ligne.montant_ttc,
+      }));
+
       const facture = await tx.facture.create({
         data: {
           utilisateur_id: utilisateurId,
@@ -114,16 +124,7 @@ export class FactureService {
           total_tva: devis.total_tva,
           total_ttc: devis.total_ttc,
           facture_ligne: {
-            create: devis.devis_ligne.map((ligne) => ({
-              produit_id: ligne.produit_id,
-              description: ligne.description,
-              quantite: ligne.quantite,
-              prix_unitaire_ht: ligne.prix_unitaire_ht,
-              taux_tva: ligne.taux_tva,
-              montant_ht: ligne.montant_ht,
-              montant_tva: ligne.montant_tva,
-              montant_ttc: ligne.montant_ttc,
-            })),
+            create: lignesPreparees, // ✅ Utiliser les lignes préparées
           },
         },
         include: { facture_ligne: true },
@@ -154,7 +155,11 @@ export class FactureService {
   async findOne(utilisateurId: number, id: number) {
     const facture = await this.prisma.facture.findFirst({
       where: { id, utilisateur_id: utilisateurId },
-      include: { facture_ligne: true, client: true, paiement: true },
+      include: {
+        facture_ligne: true,
+        client: true,
+        paiement: true,
+      },
     });
 
     if (!facture) {
@@ -164,6 +169,10 @@ export class FactureService {
     return facture;
   }
 
+  /**
+   * Met à jour une facture existante.
+   * Utilise preparerLignes() pour valider les types de ligne et les prix négatifs.
+   */
   async update(utilisateurId: number, id: number, dto: UpdateFactureDto) {
     const facture = await this.findOne(utilisateurId, id);
 
@@ -174,14 +183,8 @@ export class FactureService {
     }
 
     if (dto.lignes) {
-      const lignesCalculees = dto.lignes.map((ligne) => {
-        const montants = this.calculService.calculerLigne(
-          ligne.quantite,
-          ligne.prix_unitaire_ht,
-          ligne.taux_tva,
-        );
-        return { ...ligne, ...montants };
-      });
+      // ✅ CORRECTION : Utiliser preparerLignes() pour la validation
+      const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
       const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
       return this.prisma.facture.update({
@@ -215,6 +218,10 @@ export class FactureService {
     });
   }
 
+  /**
+   * Change le statut d'une facture.
+   * Vérifie que la transition est autorisée par la machine à états.
+   */
   async changerStatut(
     utilisateurId: number,
     id: number,
@@ -230,6 +237,10 @@ export class FactureService {
     });
   }
 
+  /**
+   * Supprime une facture.
+   * Seulement autorisé si la facture est en BROUILLON.
+   */
   async remove(utilisateurId: number, id: number) {
     const facture = await this.findOne(utilisateurId, id);
 
@@ -256,6 +267,14 @@ export class FactureService {
     });
   }
 
+  /**
+   * Recalcule le statut d'une facture en fonction des paiements enregistrés.
+   * Appelé automatiquement après chaque création/suppression de paiement.
+   *
+   * @param id - ID de la facture
+   * @param client - Client Prisma (transaction ou service)
+   * @returns La facture mise à jour
+   */
   async recalculerStatutPaiement(
     id: number,
     client: Prisma.TransactionClient | PrismaService = this.prisma,
@@ -269,25 +288,33 @@ export class FactureService {
       throw new NotFoundException('Facture introuvable');
     }
 
+    // Statuts terminaux : on ne touche à rien
     if (['ANNULEE', 'PAYEE'].includes(facture.statut)) {
-      return facture; // statuts terminaux, on ne touche à rien
+      return facture;
     }
 
+    // Calcul du total payé
     const totalPaye = facture.paiement.reduce(
       (acc, p) => acc.plus(p.montant),
       new Decimal(0),
     );
+
+    // Détermination du nouveau statut
     let nouveauStatut: StatutFacture = facture.statut;
 
     if (totalPaye.gte(facture.total_ttc)) {
+      // ✅ Facture entièrement payée
       nouveauStatut = 'PAYEE';
     } else if (totalPaye.gt(0)) {
+      // ✅ Paiement partiel
       nouveauStatut = 'PARTIELLEMENT_PAYEE';
     } else {
+      // ✅ Aucun paiement - retour à ENVOYEE si c'était PARTIELLEMENT_PAYEE
       nouveauStatut =
         facture.statut === 'PARTIELLEMENT_PAYEE' ? 'ENVOYEE' : facture.statut;
     }
 
+    // Mise à jour seulement si le statut change
     if (nouveauStatut !== facture.statut) {
       return client.facture.update({
         where: { id },
@@ -296,5 +323,64 @@ export class FactureService {
     }
 
     return facture;
+  }
+
+  /**
+   * Récupère le détail complet d'une facture avec toutes ses relations.
+   * Utile pour la génération de PDF ou l'affichage détaillé.
+   */
+  async findOneWithDetails(utilisateurId: number, id: number) {
+    const facture = await this.prisma.facture.findFirst({
+      where: { id, utilisateur_id: utilisateurId },
+      include: {
+        facture_ligne: true,
+        client: {
+          include: {
+            pays: true,
+          },
+        },
+        entreprise: true,
+        pays: true,
+        paiement: {
+          orderBy: { date_paiement: 'desc' },
+        },
+        devis: true,
+      },
+    });
+
+    if (!facture) {
+      throw new NotFoundException('Facture introuvable');
+    }
+
+    return facture;
+  }
+
+  /**
+   * Regroupe les lignes d'une facture par taux de TVA.
+   * Utile pour l'affichage sur le PDF.
+   */
+  async getRegroupementTva(utilisateurId: number, id: number) {
+    const facture = await this.findOne(utilisateurId, id);
+
+    return this.calculService.regrouperParTauxTva(facture.facture_ligne);
+  }
+
+  /**
+   * Calcule les totaux d'une facture (utile pour les recalculs).
+   */
+  async recalculerTotaux(utilisateurId: number, id: number) {
+    const facture = await this.findOne(utilisateurId, id);
+
+    const totaux = this.calculService.calculerTotaux(facture.facture_ligne);
+
+    return this.prisma.facture.update({
+      where: { id },
+      data: {
+        total_ht: totaux.total_ht,
+        total_tva: totaux.total_tva,
+        total_ttc: totaux.total_ttc,
+      },
+      include: { facture_ligne: true },
+    });
   }
 }
