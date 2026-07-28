@@ -20,13 +20,6 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentEntreprise } from '../auth/decorators/current-entreprise.decorator';
 import { EntrepriseActiveGuard } from '../auth/guards/entreprise-active.guard';
 
-interface AuthenticatedUser {
-  id: number;
-  email: string;
-  role: string;
-  entreprise_id: number | null;
-}
-
 @Controller('client')
 @UseGuards(AuthGuard('jwt'), EntrepriseActiveGuard) // ✅ Auth + Entreprise active obligatoire
 export class ClientController {
@@ -40,7 +33,7 @@ export class ClientController {
   @HttpCode(HttpStatus.CREATED)
   async createClient(
     @Body() createClientDto: CreateClientDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: any,
     @CurrentEntreprise() entrepriseId: number, // ✅ Récupère l'entreprise active
   ) {
     return this.clientService.createClient(
