@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -12,13 +13,15 @@ import { UpdateClientDto } from './dto/update-client.dto';
 export class ClientService {
   constructor(private readonly prisma: PrismaService) {}
 
-  //Read
+  // ============================================
+  // READ - Tous les clients de l'entreprise
+  // ============================================
 
-  async findAll(userId: number) {
+  async findAll(entrepriseId: number) {
     try {
       const clients = await this.prisma.client.findMany({
         where: {
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
         },
         include: {
           pays: true,
@@ -44,12 +47,16 @@ export class ClientService {
     }
   }
 
-  async findOne(id: number, userId: number) {
+  // ============================================
+  // READ - Un client spécifique
+  // ============================================
+
+  async findOne(id: number, entrepriseId: number) {
     try {
       const client = await this.prisma.client.findFirst({
         where: {
           id: id,
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
         },
         include: {
           pays: true,
@@ -105,11 +112,15 @@ export class ClientService {
     }
   }
 
-  async findByType(type: string, userId: number) {
+  // ============================================
+  // READ - Clients par type (particulier/entreprise)
+  // ============================================
+
+  async findByType(type: string, entrepriseId: number) {
     try {
       const clients = await this.prisma.client.findMany({
         where: {
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
           type: type as any,
         },
         include: {
@@ -129,11 +140,15 @@ export class ClientService {
     }
   }
 
-  async searchClients(searchTerm: string, userId: number) {
+  // ============================================
+  // READ - Recherche de clients
+  // ============================================
+
+  async searchClients(searchTerm: string, entrepriseId: number) {
     try {
       const clients = await this.prisma.client.findMany({
         where: {
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
           OR: [
             { nom: { contains: searchTerm, mode: 'insensitive' } },
             { prenom: { contains: searchTerm, mode: 'insensitive' } },
@@ -160,10 +175,17 @@ export class ClientService {
     }
   }
 
-  //Create
+  // ============================================
+  // CREATE - Créer un nouveau client
+  // ============================================
 
-  async createClient(createClientDto: CreateClientDto, userId: number) {
+  async createClient(
+    createClientDto: CreateClientDto,
+    entrepriseId: number,
+    utilisateurId: number,
+  ) {
     try {
+      // Vérifier que le pays existe
       const pays = await this.prisma.pays.findUnique({
         where: { id: createClientDto.pays_id },
       });
@@ -172,19 +194,26 @@ export class ClientService {
         throw new NotFoundException('Pays non trouvé');
       }
 
+      // Vérifier l'unicité du SIRET dans l'entreprise
       if (createClientDto.siret) {
-        const existingClient = await this.prisma.client.findUnique({
-          where: { siret: createClientDto.siret },
+        const existingClient = await this.prisma.client.findFirst({
+          where: {
+            siret: createClientDto.siret,
+            entreprise_id: entrepriseId, // ✅ SIRET unique par entreprise
+          },
         });
 
         if (existingClient) {
-          throw new BadRequestException('Un client avec ce SIRET existe déjà');
+          throw new BadRequestException(
+            'Un client avec ce SIRET existe déjà dans cette entreprise',
+          );
         }
       }
 
       const data = {
         ...createClientDto,
-        utilisateur_id: userId,
+        utilisateur_id: utilisateurId,
+        entreprise_id: entrepriseId, // ✅ Liaison automatique à l'entreprise
       };
 
       const client = await this.prisma.client.create({
@@ -216,19 +245,21 @@ export class ClientService {
     }
   }
 
-  //Update
+  // ============================================
+  // UPDATE - Mettre à jour un client
+  // ============================================
 
   async updateClient(
     id: number,
     updateClientDto: UpdateClientDto,
-    userId: number,
+    entrepriseId: number,
   ) {
     try {
-      // Vérifier si le client existe et appartient à l'utilisateur
+      // Vérifier si le client existe et appartient à l'entreprise
       const existingClient = await this.prisma.client.findFirst({
         where: {
           id: id,
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
         },
       });
 
@@ -252,18 +283,24 @@ export class ClientService {
         updateClientDto.siret &&
         updateClientDto.siret !== existingClient.siret
       ) {
-        const clientWithSiret = await this.prisma.client.findUnique({
-          where: { siret: updateClientDto.siret },
+        const clientWithSiret = await this.prisma.client.findFirst({
+          where: {
+            siret: updateClientDto.siret,
+            entreprise_id: entrepriseId, // ✅ SIRET unique par entreprise
+          },
         });
 
         if (clientWithSiret) {
-          throw new BadRequestException('Un client avec ce SIRET existe déjà');
+          throw new BadRequestException(
+            'Un client avec ce SIRET existe déjà dans cette entreprise',
+          );
         }
       }
 
       const data: any = { ...updateClientDto };
       delete data.utilisateur_id;
       delete data.id;
+      delete data.entreprise_id; // ✅ Empêcher le changement d'entreprise
 
       const updatedClient = await this.prisma.client.update({
         where: { id: id },
@@ -295,14 +332,17 @@ export class ClientService {
     }
   }
 
-  //Delete
-  async deleteClient(id: number, userId: number) {
+  // ============================================
+  // DELETE - Supprimer un client
+  // ============================================
+
+  async deleteClient(id: number, entrepriseId: number) {
     try {
-      // Vérifier si le client existe et appartient à l'utilisateur
+      // Vérifier si le client existe et appartient à l'entreprise
       const client = await this.prisma.client.findFirst({
         where: {
           id: id,
-          utilisateur_id: userId,
+          entreprise_id: entrepriseId, // ✅ Filtré par entreprise
         },
         include: {
           devis: {
@@ -346,5 +386,24 @@ export class ClientService {
           (error instanceof Error ? error.message : String(error)),
       );
     }
+  }
+
+  // ============================================
+  // UTILITAIRE - Vérifier l'appartenance
+  // ============================================
+
+  async verifyClientOwnership(
+    clientId: number,
+    entrepriseId: number,
+  ): Promise<boolean> {
+    const client = await this.prisma.client.findFirst({
+      where: {
+        id: clientId,
+        entreprise_id: entrepriseId,
+      },
+      select: { id: true },
+    });
+
+    return !!client;
   }
 }
