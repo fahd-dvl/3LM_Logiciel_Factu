@@ -25,6 +25,8 @@ import { NumerotationService } from './common/services/numerotation.service';
 import { PaiementController } from './paiement/paiement.controller';
 import { PaiementService } from './paiement/paiement.service';
 import { PaiementModule } from './paiement/paiement.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
+import { EntrepriseModule } from './entreprise/entreprise.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { PaiementModule } from './paiement/paiement.module';
     AuthModule,
     FactureModule,
     PaiementModule,
+    ChatbotModule,
+    EntrepriseModule,
   ],
   controllers: [
     AppController,

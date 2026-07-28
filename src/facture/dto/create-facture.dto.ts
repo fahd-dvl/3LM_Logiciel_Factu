@@ -7,8 +7,11 @@ import {
   IsString,
   MaxLength,
   ValidateNested,
+  IsEnum,
+  IsOptional,
 } from 'class-validator';
 import { CreateFactureLigneDto } from './create-facture-ligne.dto';
+import { MethodePaiement } from 'generated/prisma/enums';
 
 export class CreateFactureDto {
   @IsInt()
@@ -27,6 +30,10 @@ export class CreateFactureDto {
   @MaxLength(10)
   devise: string;
 
+  @IsOptional()
+  @IsEnum(MethodePaiement)
+  mode_paiement?: MethodePaiement;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
@@ -39,6 +46,7 @@ export class CreateFactureDto {
     pays_id: number,
     date_echeance: string,
     devise: string,
+    mode_paiement: MethodePaiement,
     lignes: CreateFactureLigneDto[],
   ) {
     this.entreprise_id = entreprise_id;
@@ -46,6 +54,7 @@ export class CreateFactureDto {
     this.pays_id = pays_id;
     this.date_echeance = date_echeance;
     this.devise = devise;
+    this.mode_paiement = mode_paiement;
     this.lignes = lignes;
   }
 }

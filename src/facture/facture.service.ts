@@ -38,7 +38,6 @@ export class FactureService {
       TypeDocument.FACTURE,
     );
 
-    // ✅ CORRECTION : Utiliser preparerLignes() pour la validation
     const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
     const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
@@ -51,6 +50,7 @@ export class FactureService {
         numero,
         date_echeance: new Date(dto.date_echeance),
         devise: dto.devise,
+        mode_paiement: dto.mode_paiement, // ✅ AJOUT
         statut: 'BROUILLON',
         ...totaux,
         facture_ligne: {
@@ -96,14 +96,13 @@ export class FactureService {
       const dateEcheance = new Date();
       dateEcheance.setDate(dateEcheance.getDate() + delai);
 
-      // ✅ CORRECTION : Ajouter type_ligne dans la conversion
       const lignesPreparees = devis.devis_ligne.map((ligne) => ({
         produit_id: ligne.produit_id,
         description: ligne.description,
         quantite: ligne.quantite,
         prix_unitaire_ht: ligne.prix_unitaire_ht,
         taux_tva: ligne.taux_tva,
-        type_ligne: ligne.type_ligne || 'PRODUIT', // ✅ AJOUT
+        type_ligne: ligne.type_ligne || 'PRODUIT',
         montant_ht: ligne.montant_ht,
         montant_tva: ligne.montant_tva,
         montant_ttc: ligne.montant_ttc,
@@ -119,12 +118,13 @@ export class FactureService {
           numero,
           date_echeance: dateEcheance,
           devise: devis.devise,
+          mode_paiement: null, // ✅ AJOUT : valeur par défaut (à définir plus tard)
           statut: 'BROUILLON',
           total_ht: devis.total_ht,
           total_tva: devis.total_tva,
           total_ttc: devis.total_ttc,
           facture_ligne: {
-            create: lignesPreparees, // ✅ Utiliser les lignes préparées
+            create: lignesPreparees,
           },
         },
         include: { facture_ligne: true },
@@ -183,7 +183,6 @@ export class FactureService {
     }
 
     if (dto.lignes) {
-      // ✅ CORRECTION : Utiliser preparerLignes() pour la validation
       const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
       const totaux = this.calculService.calculerTotaux(lignesCalculees);
 
@@ -195,6 +194,9 @@ export class FactureService {
             date_echeance: new Date(dto.date_echeance),
           }),
           ...(dto.devise && { devise: dto.devise }),
+          ...(dto.mode_paiement !== undefined && {
+            mode_paiement: dto.mode_paiement,
+          }), // ✅ AJOUT
           ...totaux,
           facture_ligne: {
             deleteMany: {},
@@ -213,6 +215,9 @@ export class FactureService {
           date_echeance: new Date(dto.date_echeance),
         }),
         ...(dto.devise && { devise: dto.devise }),
+        ...(dto.mode_paiement !== undefined && {
+          mode_paiement: dto.mode_paiement,
+        }), // ✅ AJOUT
       },
       include: { facture_ligne: true },
     });
@@ -270,10 +275,6 @@ export class FactureService {
   /**
    * Recalcule le statut d'une facture en fonction des paiements enregistrés.
    * Appelé automatiquement après chaque création/suppression de paiement.
-   *
-   * @param id - ID de la facture
-   * @param client - Client Prisma (transaction ou service)
-   * @returns La facture mise à jour
    */
   async recalculerStatutPaiement(
     id: number,
@@ -303,13 +304,10 @@ export class FactureService {
     let nouveauStatut: StatutFacture = facture.statut;
 
     if (totalPaye.gte(facture.total_ttc)) {
-      // ✅ Facture entièrement payée
       nouveauStatut = 'PAYEE';
     } else if (totalPaye.gt(0)) {
-      // ✅ Paiement partiel
       nouveauStatut = 'PARTIELLEMENT_PAYEE';
     } else {
-      // ✅ Aucun paiement - retour à ENVOYEE si c'était PARTIELLEMENT_PAYEE
       nouveauStatut =
         facture.statut === 'PARTIELLEMENT_PAYEE' ? 'ENVOYEE' : facture.statut;
     }

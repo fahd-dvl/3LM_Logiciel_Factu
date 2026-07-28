@@ -9,9 +9,15 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PrismaModule } from '../prisma/prisma.module';
+import { EntrepriseModule } from 'src/entreprise/entreprise.module';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({}), PrismaModule],
+  imports: [
+    PassportModule,
+    JwtModule.register({}),
+    PrismaModule,
+    EntrepriseModule,
+  ],
   controllers: [AuthController],
   providers: [
     AuthService,

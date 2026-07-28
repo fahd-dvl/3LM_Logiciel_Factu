@@ -30,11 +30,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Utilisateur invalide ou inactif');
     }
 
-    // Attached to request.user
+    let entrepriseId: number | null = null;
+
+    if (payload.entreprise_id) {
+      const entreprise = await this.prisma.entreprise.findFirst({
+        where: { id: payload.entreprise_id, utilisateur_id: user.id },
+      });
+
+      // Si l'entreprise n'existe plus ou n'appartient plus à cet utilisateur,
+      // on ignore silencieusement plutôt que de rejeter toute la requête :
+      // EntrepriseActiveGuard se chargera de bloquer les endpoints qui en ont besoin.
+      entrepriseId = entreprise ? entreprise.id : null;
+    }
+
     return {
       id: user.id,
       email: user.email,
       role: user.role,
+      entreprise_id: entrepriseId,
     };
   }
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -9,8 +10,10 @@ import * as bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
 import ms, { StringValue } from 'ms';
 import { PrismaService } from '../prisma/prisma.service';
+import { EntrepriseService } from '../entreprise/entreprise.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +21,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private entrepriseService: EntrepriseService, // ← nouveau
   ) {}
 
   async register(registerDto: RegisterDto, req: Request, res: Response) {
@@ -44,12 +48,21 @@ export class AuthService {
       },
     });
 
-    return this.generateTokens(user, req, res);
+    // Nouvel utilisateur : jamais d'entreprise à l'inscription
+    return this.generateTokens(user, req, res, null);
   }
 
   async login(loginDto: LoginDto, req: Request, res: Response) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
-    return this.generateTokens(user, req, res);
+
+    const entreprises = await this.entrepriseService.findAllByUtilisateur(
+      user.id,
+    );
+    // Sélection automatique seulement si une unique entreprise existe
+    const entrepriseIdAuto =
+      entreprises.length === 1 ? entreprises[0].id : null;
+
+    return this.generateTokens(user, req, res, entrepriseIdAuto);
   }
 
   async validateUser(email: string, password: string) {
@@ -78,9 +91,34 @@ export class AuthService {
     return result;
   }
 
-  // Called by JwtRefreshGuard route: rotates the refresh token
+  /**
+   * Change l'entreprise active : vérifie que l'entreprise appartient bien
+   * à l'utilisateur, puis réémet un nouveau couple de tokens avec
+   * entreprise_id mis à jour dans le payload.
+   */
+  async choisirEntreprise(
+    userId: number,
+    entrepriseId: number,
+    req: Request,
+    res: Response,
+  ) {
+    // findOne lève déjà NotFoundException / ForbiddenException si besoin
+    await this.entrepriseService.findOne(userId, entrepriseId);
+
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.actif) {
+      throw new UnauthorizedException('Utilisateur invalide ou inactif');
+    }
+
+    return this.generateTokens(user, req, res, entrepriseId);
+  }
+
   async refreshTokens(
     userId: number,
+    entrepriseId: number | null, // ← nouveau paramètre
     oldRefreshToken: string,
     req: Request,
     res: Response,
@@ -93,7 +131,6 @@ export class AuthService {
       throw new UnauthorizedException('Utilisateur invalide ou inactif');
     }
 
-    // Revoke the old token (rotation)
     await this.prisma.refreshToken.update({
       where: { token: oldRefreshToken },
       data: {
@@ -103,7 +140,7 @@ export class AuthService {
       },
     });
 
-    return this.generateTokens(user, req, res);
+    return this.generateTokens(user, req, res, entrepriseId);
   }
 
   async logout(
@@ -128,11 +165,17 @@ export class AuthService {
     return { success: true, message: 'Déconnexion réussie' };
   }
 
-  private async generateTokens(user: any, req: Request, res: Response) {
-    const payload = {
+  private async generateTokens(
+    user: any,
+    req: Request,
+    res: Response,
+    entrepriseId: number | null,
+  ) {
+    const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
+      entreprise_id: entrepriseId,
     };
 
     const accessExpiresIn = this.configService.get<string>(
@@ -196,6 +239,7 @@ export class AuthService {
         prenom: user.prenom,
         role: user.role,
       },
+      entreprise_id: entrepriseId, // ← utile pour que le frontend sache s'il doit rediriger vers "choisir une société"
     };
   }
 }

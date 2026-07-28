@@ -11,6 +11,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChoisirEntrepriseDto } from './dto/choisir-entreprise.dto';
 import { Public } from './decorators/public.decorator';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -49,7 +50,34 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.refreshTokens(user.id, user.refreshToken, req, res);
+    return this.authService.refreshTokens(
+      user.id,
+      user.entreprise_id, // ← propagé depuis JwtRefreshStrategy
+      user.refreshToken,
+      req,
+      res,
+    );
+  }
+
+  /**
+   * Change l'entreprise active pour la session en cours : vérifie
+   * l'appartenance puis réémet un nouveau couple access/refresh token
+   * avec entreprise_id à jour dans le payload.
+   */
+  @Post('choisir-entreprise')
+  @HttpCode(200)
+  choisirEntreprise(
+    @CurrentUser() user: any,
+    @Body() dto: ChoisirEntrepriseDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.choisirEntreprise(
+      user.id,
+      dto.entreprise_id,
+      req,
+      res,
+    );
   }
 
   @Post('logout')

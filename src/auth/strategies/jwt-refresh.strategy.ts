@@ -48,6 +48,12 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException('Utilisateur invalide ou inactif');
     }
 
-    return { id: user.id, email: user.email, role: user.role, refreshToken };
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      entreprise_id: payload.entreprise_id, // ← propagé depuis l'ancien refresh token
+      refreshToken,
+    };
   }
 }
