@@ -7,35 +7,48 @@ import {
   Body,
   Query,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { PaiementService } from './paiement.service';
 import { CreatePaiementDto } from './dto/create-paiement.dto';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { CurrentEntreprise } from '../auth/decorators/current-entreprise.decorator';
+import { EntrepriseActiveGuard } from '../auth/guards/entreprise-active.guard';
 
 @Controller('paiements')
+@UseGuards(AuthGuard('jwt'), EntrepriseActiveGuard)
 export class PaiementController {
   constructor(private readonly paiementService: PaiementService) {}
 
   @Post()
-  create(@CurrentUser() user: any, @Body() dto: CreatePaiementDto) {
-    return this.paiementService.creer(user.id, dto);
+  create(
+    @CurrentEntreprise() entrepriseId: number,
+    @Body() dto: CreatePaiementDto,
+  ) {
+    return this.paiementService.creer(entrepriseId, dto);
   }
 
   @Get()
   findAllByFacture(
-    @CurrentUser() user: any,
+    @CurrentEntreprise() entrepriseId: number,
     @Query('facture_id', ParseIntPipe) factureId: number,
   ) {
-    return this.paiementService.findAllByFacture(user.id, factureId);
+    return this.paiementService.findAllByFacture(entrepriseId, factureId);
   }
 
   @Get(':id')
-  findOne(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-    return this.paiementService.findOne(user.id, id);
+  findOne(
+    @CurrentEntreprise() entrepriseId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.paiementService.findOne(entrepriseId, id);
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-    return this.paiementService.remove(user.id, id);
+  remove(
+    @CurrentEntreprise() entrepriseId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.paiementService.remove(entrepriseId, id);
   }
 }

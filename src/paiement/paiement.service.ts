@@ -15,15 +15,10 @@ export class PaiementService {
     private readonly factureService: FactureService,
   ) {}
 
-  /**
-   * Enregistre un paiement sur une facture, avec toutes les validations
-   * métier, puis recalcule le statut de la facture — le tout dans une
-   * transaction pour garantir la cohérence.
-   */
-  async creer(utilisateurId: number, dto: CreatePaiementDto) {
+  async creer(entrepriseId: number, dto: CreatePaiementDto) {
     return this.prisma.$transaction(async (tx) => {
       const facture = await tx.facture.findFirst({
-        where: { id: dto.facture_id, utilisateur_id: utilisateurId },
+        where: { id: dto.facture_id, entreprise_id: entrepriseId },
         include: { paiement: true },
       });
 
@@ -78,9 +73,9 @@ export class PaiementService {
     });
   }
 
-  async findAllByFacture(utilisateurId: number, factureId: number) {
+  async findAllByFacture(entrepriseId: number, factureId: number) {
     const facture = await this.prisma.facture.findFirst({
-      where: { id: factureId, utilisateur_id: utilisateurId },
+      where: { id: factureId, entreprise_id: entrepriseId },
     });
 
     if (!facture) {
@@ -93,11 +88,11 @@ export class PaiementService {
     });
   }
 
-  async findOne(utilisateurId: number, id: number) {
+  async findOne(entrepriseId: number, id: number) {
     const paiement = await this.prisma.paiement.findFirst({
       where: {
         id,
-        facture: { utilisateur_id: utilisateurId },
+        facture: { entreprise_id: entrepriseId },
       },
       include: { facture: true },
     });
@@ -109,15 +104,10 @@ export class PaiementService {
     return paiement;
   }
 
-  /**
-   * Annule un paiement (ex: erreur de saisie) et recalcule le statut
-   * de la facture en conséquence. Interdit si la facture est déjà PAYEE
-   * ou ANNULEE, pour ne jamais modifier un historique définitif.
-   */
-  async remove(utilisateurId: number, id: number) {
+  async remove(entrepriseId: number, id: number) {
     return this.prisma.$transaction(async (tx) => {
       const paiement = await tx.paiement.findFirst({
-        where: { id, facture: { utilisateur_id: utilisateurId } },
+        where: { id, facture: { entreprise_id: entrepriseId } },
         include: { facture: true },
       });
 

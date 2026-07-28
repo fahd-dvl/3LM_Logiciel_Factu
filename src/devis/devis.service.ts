@@ -10,7 +10,7 @@ import { TypeDocument } from '../common/enums/type-document.enum';
 import { CreateDevisDto } from './dto/create-devis.dto';
 import { UpdateDevisDto } from './dto/update-devis.dto';
 import { verifierTransition, estModifiable } from './devis-statut.machine';
-import { StatutDevis } from 'generated/prisma/browser';
+import { StatutDevis } from 'generated/prisma/enums';
 
 @Injectable()
 export class DevisService {
@@ -20,9 +20,9 @@ export class DevisService {
     private readonly numerotationService: NumerotationService,
   ) {}
 
-  async creer(utilisateurId: number, dto: CreateDevisDto) {
+  async creer(entrepriseId: number, dto: CreateDevisDto) {
     const numero = await this.numerotationService.genererNumero(
-      utilisateurId,
+      entrepriseId,
       TypeDocument.DEVIS,
     );
 
@@ -31,8 +31,7 @@ export class DevisService {
 
     return this.prisma.devis.create({
       data: {
-        utilisateur_id: utilisateurId,
-        entreprise_id: dto.entreprise_id,
+        entreprise_id: entrepriseId,
         client_id: dto.client_id,
         pays_id: dto.pays_id,
         numero,
@@ -48,19 +47,19 @@ export class DevisService {
     });
   }
 
-  async findAll(utilisateurId: number, statut?: StatutDevis) {
+  async findAll(entrepriseId: number, statut?: StatutDevis) {
     return this.prisma.devis.findMany({
       where: {
-        utilisateur_id: utilisateurId,
+        entreprise_id: entrepriseId,
         ...(statut ? { statut } : {}),
       },
       orderBy: { date_creation: 'desc' },
     });
   }
 
-  async findOne(utilisateurId: number, id: number) {
+  async findOne(entrepriseId: number, id: number) {
     const devis = await this.prisma.devis.findFirst({
-      where: { id, utilisateur_id: utilisateurId },
+      where: { id, entreprise_id: entrepriseId },
       include: { devis_ligne: true, client: true },
     });
 
@@ -71,8 +70,8 @@ export class DevisService {
     return devis;
   }
 
-  async update(utilisateurId: number, id: number, dto: UpdateDevisDto) {
-    const devis = await this.findOne(utilisateurId, id);
+  async update(entrepriseId: number, id: number, dto: UpdateDevisDto) {
+    const devis = await this.findOne(entrepriseId, id);
 
     if (!estModifiable(devis.statut)) {
       throw new BadRequestException(
@@ -80,7 +79,6 @@ export class DevisService {
       );
     }
 
-    // Si les lignes sont fournies, on les recrée entièrement et recalcule les totaux
     if (dto.lignes) {
       const lignesCalculees = this.calculService.preparerLignes(dto.lignes);
       const totaux = this.calculService.calculerTotaux(lignesCalculees);
@@ -117,11 +115,11 @@ export class DevisService {
   }
 
   async changerStatut(
-    utilisateurId: number,
+    entrepriseId: number,
     id: number,
     nouveauStatut: StatutDevis,
   ) {
-    const devis = await this.findOne(utilisateurId, id);
+    const devis = await this.findOne(entrepriseId, id);
 
     verifierTransition(devis.statut, nouveauStatut);
 
@@ -131,8 +129,8 @@ export class DevisService {
     });
   }
 
-  async remove(utilisateurId: number, id: number) {
-    const devis = await this.findOne(utilisateurId, id);
+  async remove(entrepriseId: number, id: number) {
+    const devis = await this.findOne(entrepriseId, id);
 
     if (devis.statut !== 'BROUILLON') {
       throw new BadRequestException(
@@ -143,11 +141,6 @@ export class DevisService {
     return this.prisma.devis.delete({ where: { id } });
   }
 
-  /**
-   * Passe automatiquement en EXPIRE les devis dont la date de validité
-   * est dépassée et qui sont encore en BROUILLON ou ENVOYE.
-   * À appeler depuis un cron job.
-   */
   async verifierExpirations() {
     return this.prisma.devis.updateMany({
       where: {

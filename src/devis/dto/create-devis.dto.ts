@@ -12,9 +12,6 @@ import { CreateDevisLigneDto } from './create-devis-ligne.dto';
 
 export class CreateDevisDto {
   @IsInt()
-  entreprise_id: number;
-
-  @IsInt()
   client_id: number;
 
   @IsInt()

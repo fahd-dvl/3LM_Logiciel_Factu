@@ -8,7 +8,7 @@ import {
   Length,
   IsPhoneNumber,
 } from 'class-validator';
-import { TypeClient } from 'generated/prisma/browser';
+import { TypeClient } from 'generated/prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateClientDto {

@@ -21,7 +21,7 @@ import { CurrentEntreprise } from '../auth/decorators/current-entreprise.decorat
 import { EntrepriseActiveGuard } from '../auth/guards/entreprise-active.guard';
 
 @Controller('client')
-@UseGuards(AuthGuard('jwt'), EntrepriseActiveGuard) // ✅ Auth + Entreprise active obligatoire
+@UseGuards(AuthGuard('jwt'), EntrepriseActiveGuard)
 export class ClientController {
   constructor(private clientService: ClientService) {}
 
@@ -34,12 +34,12 @@ export class ClientController {
   async createClient(
     @Body() createClientDto: CreateClientDto,
     @CurrentUser() user: any,
-    @CurrentEntreprise() entrepriseId: number, // ✅ Récupère l'entreprise active
+    @CurrentEntreprise() entrepriseId: number,
   ) {
     return this.clientService.createClient(
       createClientDto,
-      entrepriseId, // ✅ Entreprise active
-      user.id, // ✅ Utilisateur créateur
+      entrepriseId,
+      user.id,
     );
   }
 
@@ -52,7 +52,7 @@ export class ClientController {
   async updateClient(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateClientDto: UpdateClientDto,
-    @CurrentEntreprise() entrepriseId: number, // ✅ Entreprise active
+    @CurrentEntreprise() entrepriseId: number,
   ) {
     return this.clientService.updateClient(id, updateClientDto, entrepriseId);
   }

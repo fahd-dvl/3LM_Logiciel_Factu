@@ -12,30 +12,28 @@ export class NumerotationService {
   };
 
   /**
-   * Génère le prochain numéro séquentiel pour un utilisateur/type/année.
-   * Atomique : utilise une transaction avec upsert + increment pour éviter
-   * les doublons en cas d'appels concurrents.
+   * Génère le prochain numéro séquentiel pour une entreprise/type/année.
+   * Atomique : utilise un upsert avec increment pour éviter les doublons
+   * en cas d'appels concurrents, grâce à la contrainte unique
+   * [entreprise_id, type_document, annee].
    */
   async genererNumero(
-    utilisateurId: number,
+    entrepriseId: number,
     type: TypeDocument,
   ): Promise<string> {
     const annee = new Date().getFullYear();
 
     const compteur = await this.prisma.$transaction(async (tx) => {
-      // upsert atomique : crée le compteur à 1 s'il n'existe pas,
-      // sinon incrémente. Postgres garantit l'atomicité de cette opération
-      // grâce à la contrainte unique [utilisateur_id, type_document, annee].
       return tx.compteurNumerotation.upsert({
         where: {
-          utilisateur_id_type_document_annee: {
-            utilisateur_id: utilisateurId,
+          entreprise_id_type_document_annee: {
+            entreprise_id: entrepriseId,
             type_document: type,
             annee,
           },
         },
         create: {
-          utilisateur_id: utilisateurId,
+          entreprise_id: entrepriseId,
           type_document: type,
           annee,
           dernier_numero: 1,

@@ -1,251 +1,156 @@
 import {
   Injectable,
   NotFoundException,
-  InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { TypeProduitService } from '\generated/prisma/enums';
 import { CreateProduitServiceDto } from './dto/create-produit-service.dto';
-import { TypeProduitService } from 'generated/prisma/browser';
 import { UpdateProduitServiceDto } from './dto/update-produit-service.dto';
 
 @Injectable()
 export class ProduitServiceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(userId: number) {
+  async findAll(entrepriseId: number) {
     return this.prisma.produitService.findMany({
-      where: { utilisateur_id: userId },
-    });
-  }
-
-  async findAllProduits(userId: number) {
-    return this.prisma.produitService.findMany({
-      where: { type: TypeProduitService.PRODUIT, utilisateur_id: userId },
+      where: { entreprise_id: entrepriseId },
       include: { categorie: true, taux_tva: true },
     });
   }
 
-  async findAllServices(userId: number) {
+  async findAllProduits(entrepriseId: number) {
     return this.prisma.produitService.findMany({
-      where: { type: TypeProduitService.SERVICE, utilisateur_id: userId },
+      where: { type: TypeProduitService.PRODUIT, entreprise_id: entrepriseId },
       include: { categorie: true, taux_tva: true },
     });
   }
 
-  async findById(id: number, userId: number) {
+  async findAllServices(entrepriseId: number) {
     return this.prisma.produitService.findMany({
-      where: { id: id, utilisateur_id: userId },
+      where: { type: TypeProduitService.SERVICE, entreprise_id: entrepriseId },
+      include: { categorie: true, taux_tva: true },
+    });
+  }
+
+  async findById(id: number, entrepriseId: number) {
+    const produit = await this.prisma.produitService.findFirst({
+      where: { id, entreprise_id: entrepriseId },
+      include: { taux_tva: true, categorie: true },
+    });
+
+    if (!produit) {
+      throw new NotFoundException('Produit/service introuvable');
+    }
+
+    return produit;
+  }
+
+  async searchProduitsServices(searchTerm: string, entrepriseId: number) {
+    return this.prisma.produitService.findMany({
+      where: {
+        entreprise_id: entrepriseId,
+        OR: [
+          { nom: { contains: searchTerm, mode: 'insensitive' } },
+          { description: { contains: searchTerm, mode: 'insensitive' } },
+          { unite: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      },
+      include: { categorie: true, taux_tva: true },
+      orderBy: { nom: 'asc' },
+    });
+  }
+
+  async createProduitService(
+    dto: CreateProduitServiceDto,
+    entrepriseId: number,
+  ) {
+    const tauxTva = await this.prisma.tauxTva.findUnique({
+      where: { id: dto.taux_tva_id },
+    });
+
+    if (!tauxTva) {
+      throw new NotFoundException('Taux de TVA non trouvé');
+    }
+
+    if (dto.categorie_id) {
+      const categorie = await this.prisma.categorie.findFirst({
+        where: { id: dto.categorie_id, entreprise_id: entrepriseId },
+      });
+
+      if (!categorie) {
+        throw new NotFoundException(
+          'Catégorie non trouvée pour cette entreprise',
+        );
+      }
+    }
+
+    return this.prisma.produitService.create({
+      data: {
+        entreprise_id: entrepriseId,
+        nom: dto.nom,
+        description: dto.description,
+        prix_unitaire_ht: dto.prix_unitaire_ht,
+        unite: dto.unite ?? 'pièce',
+        taux_tva_id: dto.taux_tva_id,
+        categorie_id: dto.categorie_id,
+        actif: dto.actif ?? true,
+        type: dto.type,
+      },
       include: { taux_tva: true, categorie: true },
     });
   }
 
-  async searchProduitsServices(searchTerm: string, userId: number) {
-    try {
-      const produits = await this.prisma.produitService.findMany({
-        where: {
-          utilisateur_id: userId,
-          OR: [
-            { nom: { contains: searchTerm, mode: 'insensitive' } },
-            { description: { contains: searchTerm, mode: 'insensitive' } },
-            { unite: { contains: searchTerm, mode: 'insensitive' } },
-          ],
-        },
-        include: {
-          categorie: true,
-          taux_tva: true,
-        },
-        orderBy: {
-          nom: 'asc',
-        },
-      });
-
-      return produits;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        'Erreur lors de la recherche des produits/services: ' +
-          (error instanceof Error ? error.message : 'Erreur inconnue'),
-      );
-    }
-  }
-
-  async createProduitService(
-    createProduitServiceDto: CreateProduitServiceDto,
-    userId: number,
+  async updateProduitService(
+    id: number,
+    dto: UpdateProduitServiceDto,
+    entrepriseId: number,
   ) {
-    try {
-      const tauxTva = await this.prisma.tauxTva.findUnique({
-        where: { id: createProduitServiceDto.taux_tva_id },
-      });
+    await this.findById(id, entrepriseId); // vérifie existence + appartenance
 
+    if (dto.taux_tva_id) {
+      const tauxTva = await this.prisma.tauxTva.findUnique({
+        where: { id: dto.taux_tva_id },
+      });
       if (!tauxTva) {
         throw new NotFoundException('Taux de TVA non trouvé');
       }
-
-      if (createProduitServiceDto.categorie_id) {
-        const categorie = await this.prisma.categorie.findUnique({
-          where: { id: createProduitServiceDto.categorie_id },
-        });
-
-        if (!categorie) {
-          throw new NotFoundException('Catégorie non trouvée');
-        }
-      }
-
-      const data = {
-        ...createProduitServiceDto,
-        utilisateur_id: userId,
-        unite: createProduitServiceDto.unite || 'pièce',
-        actif:
-          createProduitServiceDto.actif !== undefined
-            ? createProduitServiceDto.actif
-            : true,
-      };
-
-      const produitService = await this.prisma.produitService.create({
-        data,
-        include: {
-          taux_tva: true,
-          categorie: true,
-          utilisateur: {
-            select: {
-              id: true,
-              nom: true,
-              email: true,
-            },
-          },
-        },
-      });
-
-      return produitService;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Erreur lors de la création du produit/service: ' +
-          (error instanceof Error ? error.message : String(error)),
-      );
     }
+
+    if (dto.categorie_id) {
+      const categorie = await this.prisma.categorie.findFirst({
+        where: { id: dto.categorie_id, entreprise_id: entrepriseId },
+      });
+      if (!categorie) {
+        throw new NotFoundException(
+          'Catégorie non trouvée pour cette entreprise',
+        );
+      }
+    }
+
+    return this.prisma.produitService.update({
+      where: { id },
+      data: dto,
+      include: { taux_tva: true, categorie: true },
+    });
   }
 
-  async updateProduitService(
-    id: number,
-    updateProduitServiceDto: UpdateProduitServiceDto,
-    userId: number,
-  ) {
-    try {
-      const produitService = await this.prisma.produitService.findFirst({
-        where: {
-          id: id,
-          utilisateur_id: userId,
-        },
-      });
-      if (!produitService) {
-        throw new NotFoundException(
-          'Produit/Service non trouvé ou vous non autorisé à le modifier',
-        );
-      }
+  async deleteProduitService(id: number, entrepriseId: number) {
+    await this.findById(id, entrepriseId);
 
-      if (updateProduitServiceDto.taux_tva_id) {
-        const tauxTva = await this.prisma.tauxTva.findUnique({
-          where: { id: updateProduitServiceDto.taux_tva_id },
-        });
+    const [devisLignes, factureLignes] = await Promise.all([
+      this.prisma.devisLigne.findFirst({ where: { produit_id: id } }),
+      this.prisma.factureLigne.findFirst({ where: { produit_id: id } }),
+    ]);
 
-        if (!tauxTva) {
-          throw new NotFoundException('Taux de TVA non trouvé');
-        }
-      }
-
-      if (updateProduitServiceDto.categorie_id) {
-        const categorie = await this.prisma.categorie.findUnique({
-          where: { id: updateProduitServiceDto.categorie_id },
-        });
-        if (!categorie) {
-          throw new NotFoundException('Catégorie non trouvée');
-        }
-      }
-
-      const data: any = { ...updateProduitServiceDto };
-
-      delete data.utilisateur_id;
-      delete data.id;
-
-      const updatedProduitService = await this.prisma.produitService.update({
-        where: { id: id },
-        data: data,
-        include: {
-          taux_tva: true,
-          categorie: true,
-          utilisateur: {
-            select: {
-              id: true,
-              nom: true,
-              email: true,
-            },
-          },
-        },
-      });
-      return updatedProduitService;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Erreur lors de la mise à jour du produit/service: ' +
-          (error instanceof Error ? error.message : String(error)),
+    if (devisLignes || factureLignes) {
+      throw new BadRequestException(
+        'Impossible de supprimer ce produit/service car il est utilisé dans des devis ou factures',
       );
     }
-  }
 
-  async deleteProduitService(id: number, userId: number) {
-    try {
-      const produitService = await this.prisma.produitService.findFirst({
-        where: {
-          id: id,
-          utilisateur_id: userId,
-        },
-      });
+    await this.prisma.produitService.delete({ where: { id } });
 
-      if (!produitService) {
-        throw new NotFoundException(
-          'Produit/Service non trouvé ou non autorisé à le supprimer',
-        );
-      }
-
-      const devisLignes = await this.prisma.devisLigne.findFirst({
-        where: { produit_id: id },
-      });
-
-      const factureLignes = await this.prisma.factureLigne.findFirst({
-        where: { produit_id: id },
-      });
-
-      if (devisLignes || factureLignes) {
-        throw new BadRequestException(
-          'Impossible de supprimer ce produit/service car il est utilisé dans des devis ou factures',
-        );
-      }
-
-      await this.prisma.produitService.delete({
-        where: { id: id },
-      });
-
-      return {
-        message: 'Produit/Service supprimé avec succés',
-        id: id,
-      };
-    } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Erreur lors de la suppression du produit/service: ' +
-          (error instanceof Error ? error.message : String(error)),
-      );
-    }
+    return { message: 'Produit/Service supprimé avec succès', id };
   }
 }

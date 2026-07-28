@@ -15,9 +15,6 @@ import { MethodePaiement } from 'generated/prisma/enums';
 
 export class CreateFactureDto {
   @IsInt()
-  entreprise_id: number;
-
-  @IsInt()
   client_id: number;
 
   @IsInt()
@@ -49,7 +46,6 @@ export class CreateFactureDto {
     mode_paiement: MethodePaiement,
     lignes: CreateFactureLigneDto[],
   ) {
-    this.entreprise_id = entreprise_id;
     this.client_id = client_id;
     this.pays_id = pays_id;
     this.date_echeance = date_echeance;
