@@ -10,7 +10,7 @@ import { TypeDocument } from '../common/enums/type-document.enum';
 import { CreateDevisDto } from './dto/create-devis.dto';
 import { UpdateDevisDto } from './dto/update-devis.dto';
 import { verifierTransition, estModifiable } from './devis-statut.machine';
-import { StatutDevis } from 'generated/prisma/enums';
+import { StatutDevis } from 'generated/prisma/client';
 
 @Injectable()
 export class DevisService {
@@ -60,7 +60,12 @@ export class DevisService {
   async findOne(entrepriseId: number, id: number) {
     const devis = await this.prisma.devis.findFirst({
       where: { id, entreprise_id: entrepriseId },
-      include: { devis_ligne: true, client: true },
+      include: {
+        devis_ligne: true,
+        client: { include: { pays: true } },
+        entreprise: { include: { pays: true } },
+        pays: true,
+      },
     });
 
     if (!devis) {
