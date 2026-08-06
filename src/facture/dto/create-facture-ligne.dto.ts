@@ -40,7 +40,7 @@ export class CreateFactureLigneDto {
     taux_tva: number,
   ) {
     this.produit_id = produit_id;
-    this.type_ligne = this.type_ligne;
+    this.type_ligne = type_ligne;
     this.description = description;
     this.quantite = quantite;
     this.prix_unitaire_ht = prix_unitaire_ht;

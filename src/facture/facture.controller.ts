@@ -20,11 +20,20 @@ import { ConvertirDevisDto } from './dto/convertir-devis.dto';
 import { StatutFacture } from 'generated/prisma/enums';
 import { CurrentEntreprise } from '../auth/decorators/current-entreprise.decorator';
 import { EntrepriseActiveGuard } from '../auth/guards/entreprise-active.guard';
+import { CreateFactureChatbotDto } from './dto/create-facture-chatbot.dto';
 
 @Controller('factures')
 @UseGuards(AuthGuard('jwt'), EntrepriseActiveGuard)
 export class FactureController {
   constructor(private readonly factureService: FactureService) {}
+
+  @Post('chatbot')
+  creerViaChatbot(
+    @Body() dto: CreateFactureChatbotDto,
+    @CurrentEntreprise() entrepriseId: number,
+  ) {
+    return this.factureService.creerViaChatbot(entrepriseId, dto);
+  }
 
   @Post()
   create(

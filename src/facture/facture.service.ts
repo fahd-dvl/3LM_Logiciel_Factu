@@ -9,12 +9,15 @@ import { NumerotationService } from '../common/services/numerotation.service';
 import { TypeDocument } from '../common/enums/type-document.enum';
 import { CreateFactureDto } from './dto/create-facture.dto';
 import { UpdateFactureDto } from './dto/update-facture.dto';
+import { CreateFactureLigneDto } from './dto/create-facture-ligne.dto';
+import { CreateFactureChatbotDto } from './dto/create-facture-chatbot.dto';
 import {
   verifierTransitionFacture,
   estModifiableFacture,
   estSupprimableFacture,
 } from './facture-statut.machine';
 import { StatutFacture, Prisma } from 'generated/prisma/browser';
+import { TypeLigne } from 'generated/prisma/enums';
 import { Decimal } from '@prisma/client/runtime/library';
 
 const DELAI_PAIEMENT_DEFAUT_JOURS = 30;
@@ -310,5 +313,108 @@ export class FactureService {
       },
       include: { facture_ligne: true },
     });
+  }
+
+  /**
+   * Point d'entrée dédié à l'agent IA : prend des paramètres simplifiés
+   * (nom client, matricule fiscal, adresse, date, éléments en texte libre),
+   * résout/crée le client, construit un CreateFactureDto complet conforme
+   * à CreateFactureLigneDto, puis réutilise la logique existante `creer()`
+   * (numérotation, calcul des totaux via CalculService, etc. inclus).
+   */
+  async creerViaChatbot(entrepriseId: number, dto: CreateFactureChatbotDto) {
+    // 1. Récupérer l'entreprise + son pays (pour devise et pays_id par défaut)
+    const entreprise = await this.prisma.entreprise.findUnique({
+      where: { id: entrepriseId },
+      include: { pays: true },
+    });
+
+    if (!entreprise) {
+      throw new NotFoundException('Entreprise introuvable');
+    }
+
+    // 2. Chercher le client par matricule_fiscal dans cette entreprise
+    //    NOTE: le modèle Client n'a pas de "numero_tva" -> on utilise matricule_fiscal
+    //    comme clé de correspondance la plus proche (pas de contrainte @unique dessus,
+    //    donc on prend le premier trouvé).
+    let client = await this.prisma.client.findFirst({
+      where: {
+        entreprise_id: entrepriseId,
+        matricule_fiscal: dto.numero_tva,
+      },
+    });
+
+    // 3. Le créer automatiquement s'il n'existe pas
+    if (!client) {
+      client = await this.prisma.client.create({
+        data: {
+          entreprise_id: entrepriseId,
+          type: 'entreprise', // hypothèse : les clients créés via chatbot sont des entreprises
+          nom: dto.client,
+          matricule_fiscal: dto.numero_tva,
+          adresse: dto.adresse_client,
+          pays_id: entreprise.pays_id, // requis sur Client, on reprend celui de l'entreprise
+        },
+      });
+    }
+
+    // 4. Récupérer un taux de TVA actif pour ce pays
+    //    NOTE: CreateFactureLigneDto.taux_tva est requis et le chatbot ne le fournit pas ;
+    //    on prend le taux actif le plus récent pour le pays de l'entreprise.
+    //    À ajuster si la logique métier réelle diffère (taux par produit, etc.).
+    const tauxTvaActif = await this.prisma.tauxTva.findFirst({
+      where: {
+        pays_id: entreprise.pays_id,
+        date_fin: null,
+      },
+      orderBy: { date_debut: 'desc' },
+    });
+
+    if (!tauxTvaActif) {
+      throw new NotFoundException(
+        `Aucun taux de TVA actif configuré pour le pays de l'entreprise (pays_id=${entreprise.pays_id})`,
+      );
+    }
+
+    // 5. Valider la cohérence signe/type_ligne AVANT de construire les lignes :
+    //    une REMISE doit être négative ou nulle, les autres types strictement
+    //    positifs. Le DTO ne le vérifie pas lui-même (voir @IsNumber sans
+    //    @IsPositive sur prix_unitaire_ht) car ce champ accepte les deux
+    //    signes selon le type_ligne ; la cohérence est donc une règle
+    //    métier, pas une règle de validation de champ isolé.
+    for (const e of dto.elements) {
+      if (e.type_ligne === TypeLigne.REMISE && e.prix_unitaire_ht > 0) {
+        throw new BadRequestException(
+          'Une ligne de type REMISE doit avoir un prix unitaire négatif ou nul',
+        );
+      }
+      if (e.type_ligne !== TypeLigne.REMISE && e.prix_unitaire_ht <= 0) {
+        throw new BadRequestException(
+          `Une ligne de type ${e.type_ligne} doit avoir un prix unitaire strictement positif`,
+        );
+      }
+    }
+
+    // 6. Construire les lignes conformes à CreateFactureLigneDto
+    const lignes: CreateFactureLigneDto[] = dto.elements.map((e) => ({
+      type_ligne: e.type_ligne,
+      description: e.description,
+      quantite: e.quantite,
+      prix_unitaire_ht: e.prix_unitaire_ht,
+      taux_tva: Number(tauxTvaActif.taux),
+    }));
+
+    // 7. Construire le DTO complet attendu par creer()
+    const createFactureDto: CreateFactureDto = {
+      client_id: client.id,
+      pays_id: entreprise.pays_id,
+      date_echeance: dto.date_facture,
+      devise: entreprise.pays.devise,
+      lignes,
+    };
+
+    // 8. Réutiliser la logique métier existante
+    //    (génère le numéro, calcule les totaux via CalculService, statut BROUILLON par défaut)
+    return this.creer(entrepriseId, createFactureDto);
   }
 }
