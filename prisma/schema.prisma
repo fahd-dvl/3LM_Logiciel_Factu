@@ -69,6 +69,11 @@ enum TypeLigne {
   SERVICE
   REMISE
 }
+enum StatutDepense {
+  A_PAYER
+  PAYEE
+  EN_RETARD
+}
 
 model Utilisateur {
   id                 Int       @id @default(autoincrement())
@@ -100,6 +105,7 @@ model Pays {
   tauxTva         TauxTva[]
   devis           Devis[]
   factures        Facture[]
+  fournisseurs Fournisseur[]
 
   @@map("pays")
 }
@@ -126,6 +132,8 @@ model Entreprise {
   clients               Client[]
   categories            Categorie[]
   compteursNumerotation CompteurNumerotation[]
+  fournisseurs Fournisseur[]   
+  depenses     Depense[]      
 
   @@map("entreprise")
 }
@@ -183,6 +191,7 @@ model Categorie {
   parent     Categorie?       @relation("CategorieParent", fields: [parent_id], references: [id])
   enfants    Categorie[]      @relation("CategorieParent")
   produits   ProduitService[]
+  depenses Depense[] 
 
   @@map("categorie")
 }
@@ -362,4 +371,50 @@ model CompteurNumerotation {
 
   @@unique([entreprise_id, type_document, annee])
   @@map("compteur_numerotation")
+}
+
+model Fournisseur {
+  id                Int      @id @default(autoincrement())
+  entreprise_id     Int
+  nom               String
+  email             String?
+  telephone         String?
+  adresse           String?
+  matricule_fiscal  String?
+  siret             String?
+  pays_id           Int
+  note              String?
+  date_creation     DateTime @default(now())
+
+  entreprise Entreprise @relation(fields: [entreprise_id], references: [id], onDelete: Cascade)
+  pays       Pays       @relation(fields: [pays_id], references: [id])
+  depenses   Depense[]
+
+  @@unique([entreprise_id, siret])
+  @@map("fournisseur")
+}
+model Depense {
+  id                Int              @id @default(autoincrement())
+  entreprise_id     Int
+  fournisseur_id    Int
+  categorie_id      Int?
+  description       String
+  date_depense      DateTime
+  date_echeance     DateTime?
+  reference_facture String?
+  montant_ht        Decimal          @db.Decimal(15, 2)
+  taux_tva          Decimal          @db.Decimal(5, 2)
+  montant_tva       Decimal          @db.Decimal(15, 2)
+  montant_ttc       Decimal          @db.Decimal(15, 2)
+  tva_recuperable   Boolean          @default(true)
+  statut            StatutDepense    @default(A_PAYER)
+  mode_paiement     MethodePaiement?
+  justificatif_url  String?
+  date_creation     DateTime         @default(now())
+
+  entreprise  Entreprise  @relation(fields: [entreprise_id], references: [id], onDelete: Cascade)
+  fournisseur Fournisseur @relation(fields: [fournisseur_id], references: [id])
+  categorie   Categorie?  @relation(fields: [categorie_id], references: [id])
+
+  @@map("depense")
 }

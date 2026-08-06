@@ -152,4 +152,20 @@ export class CalculService {
       }))
       .sort((a, b) => Number(a.taux_tva) - Number(b.taux_tva));
   }
+  calculerDepense(
+    montantHt: Decimal.Value,
+    tauxTva: Decimal.Value,
+  ): LigneCalculee {
+    const ht = new Decimal(montantHt).toDecimalPlaces(2);
+    const taux = new Decimal(tauxTva);
+
+    const montantTva = ht.mul(taux).div(100).toDecimalPlaces(2);
+    const montantTtc = ht.plus(montantTva);
+
+    return {
+      montant_ht: ht,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+    };
+  }
 }

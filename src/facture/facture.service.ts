@@ -16,7 +16,8 @@ import {
   estModifiableFacture,
   estSupprimableFacture,
 } from './facture-statut.machine';
-import { StatutFacture, Prisma } from 'generated/prisma/browser';
+
+import { StatutFacture, Prisma } from 'generated/prisma/client';
 import { TypeLigne } from 'generated/prisma/enums';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -136,7 +137,13 @@ export class FactureService {
   async findOne(entrepriseId: number, id: number) {
     const facture = await this.prisma.facture.findFirst({
       where: { id, entreprise_id: entrepriseId },
-      include: { facture_ligne: true, client: true, paiement: true },
+      include: {
+        facture_ligne: true,
+        client: { include: { pays: true } },
+        paiement: true,
+        entreprise: { include: { pays: true } },
+        pays: true,
+      },
     });
 
     if (!facture) {
@@ -281,7 +288,7 @@ export class FactureService {
       include: {
         facture_ligne: true,
         client: { include: { pays: true } },
-        entreprise: true,
+        entreprise: { include: { pays: true } },
         pays: true,
         paiement: { orderBy: { date_paiement: 'desc' } },
         devis: true,
