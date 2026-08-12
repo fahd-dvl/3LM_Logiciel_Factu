@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    @page { size: A4; margin: 20mm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .header img { max-height: 60px; }
+    .company-info p, .invoice-title p { margin: 2px 0; }
+    .invoice-title { text-align: right; }
+    .invoice-title h1 { font-size: 20px; margin: 0; color: {{ primary_color }}; }
+    .meta { display: flex; justify-content: space-between; margin: 20px 0; padding: 10px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; }
+    table.items { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    table.items th { background: {{ primary_color }}; color: #fff; text-align: left; padding: 8px; }
+    table.items td { padding: 8px; border-bottom: 1px solid #eee; }
+    table.items th:nth-child(2), table.items td:nth-child(2),
+    table.items th:nth-child(3), table.items td:nth-child(3),
+    table.items th:nth-child(4), table.items td:nth-child(4),
+    table.items th:nth-child(5), table.items td:nth-child(5) { text-align: right; }
+    table.items tr.remise td { color: #b91c1c; font-style: italic; }
+    .totals { width: 260px; margin-left: auto; margin-top: 15px; }
+    .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+    .totals .total-ttc { font-weight: bold; font-size: 14px; border-top: 1px solid #000; padding-top: 8px; }
+    .legal { margin-top: 40px; font-size: 8px; color: {{ secondary_color|default('#777777') }}; }
+    .avoir-badge { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 3px;
+                   font-size: 11px; font-weight: bold; background: #b91c1c; color: #fff; }
+    .avoir-motif { margin: 15px 0; padding: 10px 14px; border: 1px solid #b91c1c; border-radius: 4px;
+                   background: #fef2f2; color: #7f1d1d; font-size: 10px; }
+</style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="company-info">
+            {% if logo_path %}<img src="{{ logo_path }}">{% endif %}
+            <p><strong>{{ company_name }}</strong></p>
+            {% if company_matricule_fiscal %}<p>Matricule Fiscal {{ company_matricule_fiscal }}</p>{% endif %}
+            {% if company_siret %}<p>SIRET {{ company_siret }}</p>{% endif %}
+            <p>{{ company_address }}</p>
+        </div>
+        <div class="invoice-title">
+            <h1>{% if est_avoir %}FACTURE D'AVOIR{% else %}FACTURE{% endif %}</h1>
+            <p>N° {{ numero }}</p>
+            {% if est_avoir %}
+            <span class="avoir-badge">AVOIR</span>
+            <p>Avoir sur la facture {{ facture_origine_numero }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if est_avoir and motif_avoir %}
+    <div class="avoir-motif"><strong>Motif de l'avoir :</strong> {{ motif_avoir }}</div>
+    {% endif %}
+
+    <div class="meta">
+        <div>
+            <p><strong>Facturé à</strong></p>
+            {% if client_raison_sociale %}<p>{{ client_raison_sociale }}</p>{% endif %}
+            <p>{{ client_name }}</p>
+            <p>{{ client_address }}</p>
+            {% if client_matricule_fiscal %}<p>Matricule Fiscal {{ client_matricule_fiscal }}</p>{% endif %}
+            {% if client_siret %}<p>SIRET {{ client_siret }}</p>{% endif %}
+        </div>
+        <div style="text-align: right;">
+            <p><strong>Date d'émission</strong> : {{ date_emission }}</p>
+            <p><strong>Échéance</strong> : {{ date_echeance }}</p>
+        </div>
+    </div>
+
+    <table class="items">
+        <thead>
+            <tr><th>Description</th><th>Qté</th><th>Prix unitaire HT</th><th>TVA</th><th>Total HT</th></tr>
+        </thead>
+        <tbody>
+        {% for ligne in lignes %}
+            <tr{% if ligne.type_ligne == 'REMISE' %} class="remise"{% endif %}>
+                <td>{{ ligne.description }}</td>
+                <td>{{ ligne.quantite }}</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire_ht) }} {{ devise }}</td>
+                <td>{% if ligne.type_ligne == 'REMISE' %}—{% else %}{{ ligne.taux_tva }}%{% endif %}</td>
+                <td>{{ "%.2f"|format(ligne.montant_ht) }} {{ devise }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div><span>Sous-total HT</span><span>{{ "%.2f"|format(total_ht) }} {{ devise }}</span></div>
+        {% for groupe in tva_groupes %}
+        <div><span>TVA ({{ groupe.taux_tva }}%)</span><span>{{ "%.2f"|format(groupe.montant_tva) }} {{ devise }}</span></div>
+        {% endfor %}
+        <div class="total-ttc"><span>Total TTC</span><span>{{ "%.2f"|format(total_ttc) }} {{ devise }}</span></div>
+    </div>
+
+    {% if legal_mentions %}
+    <div class="legal">{{ legal_mentions }}</div>
+    {% endif %}
+
+</body>
+</html>

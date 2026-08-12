@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    @page { size: A4; margin: 20mm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .header img { max-height: 60px; }
+    .company-info p, .quote-title p { margin: 2px 0; }
+    .quote-title { text-align: right; }
+    .quote-title h1 { font-size: 20px; margin: 0; color: {{ primary_color }}; }
+    .quote-status { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 3px;
+                    font-size: 9px; font-weight: bold; background: #eee; color: {{ secondary_color|default('#333333') }}; }
+
+    .meta { display: flex; justify-content: space-between; margin: 20px 0; padding: 10px 0;
+            border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; }
+
+    .intro { margin: 15px 0; line-height: 1.5; color: #444; }
+
+    table.items { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table.items th { background: {{ primary_color }}; color: #fff; text-align: left; padding: 7px; font-size: 10px; }
+    table.items td { padding: 7px; border-bottom: 1px solid #eee; font-size: 10px; }
+    table.items th:not(:first-child), table.items td:not(:first-child) { text-align: right; }
+    table.items tr.remise td { color: #b91c1c; font-style: italic; }
+
+    .totals { width: 260px; margin-left: auto; margin-top: 15px; }
+    .totals div { display: flex; justify-content: space-between; padding: 3px 0; }
+    .totals .total-ttc { font-weight: bold; font-size: 14px; border-top: 1px solid #000; padding-top: 8px; margin-top: 4px; }
+
+    .conditions { margin-top: 30px; }
+    .conditions h3 { font-size: 11px; margin-bottom: 6px; color: {{ secondary_color|default('#333333') }}; }
+    .conditions p { font-size: 9px; line-height: 1.5; color: #555; margin: 2px 0; }
+
+    .signature { display: flex; justify-content: space-between; margin-top: 40px; }
+    .signature .block { width: 45%; }
+    .signature .line { border-top: 1px solid {{ secondary_color|default('#333333') }}; margin-top: 40px; padding-top: 4px; font-size: 9px; color: #777; }
+
+    .legal { margin-top: 30px; font-size: 8px; color: {{ secondary_color|default('#777777') }}; }
+</style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="company-info">
+            {% if logo_path %}<img src="{{ logo_path }}">{% endif %}
+            <p><strong>{{ company_name }}</strong></p>
+            <p>{{ company_address }}</p>
+            {% if company_matricule_fiscal %}<p>Matricule Fiscal {{ company_matricule_fiscal }}</p>{% endif %}
+            {% if company_siret %}<p>SIRET {{ company_siret }}</p>{% endif %}
+        </div>
+        <div class="quote-title">
+            <h1>DEVIS</h1>
+            <p>N° {{ numero }}</p>
+            {% if quote_status %}<span class="quote-status">{{ quote_status|upper }}</span>{% endif %}
+        </div>
+    </div>
+
+    <div class="meta">
+        <div>
+            <p><strong>À l'attention de</strong></p>
+            {% if client_raison_sociale %}<p>{{ client_raison_sociale }}</p>{% endif %}
+            <p>{{ client_name }}</p>
+            <p>{{ client_address }}</p>
+            {% if client_matricule_fiscal %}<p>Matricule Fiscal {{ client_matricule_fiscal }}</p>{% endif %}
+            {% if client_siret %}<p>SIRET {{ client_siret }}</p>{% endif %}
+        </div>
+        <div style="text-align: right;">
+            <p><strong>Date d'émission</strong> : {{ date_creation }}</p>
+            <p><strong>Valable jusqu'au</strong> : {{ date_validite }}</p>
+        </div>
+    </div>
+
+    {% if intro_message %}
+    <div class="intro">{{ intro_message }}</div>
+    {% endif %}
+
+    <table class="items">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Qté</th>
+                <th>Prix unitaire HT</th>
+                <th>TVA</th>
+                <th>Total HT</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in lignes %}
+            <tr{% if ligne.type_ligne == 'REMISE' %} class="remise"{% endif %}>
+                <td>{{ ligne.description }}</td>
+                <td>{{ ligne.quantite }}</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire_ht) }} {{ devise }}</td>
+                <td>{% if ligne.type_ligne == 'REMISE' %}—{% else %}{{ ligne.taux_tva }}%{% endif %}</td>
+                <td>{{ "%.2f"|format(ligne.montant_ht) }} {{ devise }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div><span>Sous-total HT</span><span>{{ "%.2f"|format(total_ht) }} {{ devise }}</span></div>
+        {% for groupe in tva_groupes %}
+        <div><span>TVA ({{ groupe.taux_tva }}%)</span><span>{{ "%.2f"|format(groupe.montant_tva) }} {{ devise }}</span></div>
+        {% endfor %}
+        <div class="total-ttc"><span>Total TTC</span><span>{{ "%.2f"|format(total_ttc) }} {{ devise }}</span></div>
+    </div>
+
+    {% if payment_conditions %}
+    <div class="conditions">
+        <h3>Conditions de paiement</h3>
+        <p>{{ payment_conditions }}</p>
+    </div>
+    {% endif %}
+
+    {% if acceptance_conditions %}
+    <div class="conditions">
+        <h3>Conditions d'acceptation</h3>
+        <p>{{ acceptance_conditions }}</p>
+    </div>
+    {% endif %}
+
+    <div class="signature">
+        <div class="block">
+            <p>Bon pour accord, le client</p>
+            <div class="line">Signature précédée de "Bon pour accord"</div>
+        </div>
+        <div class="block">
+            <p>{{ company_name }}</p>
+            <div class="line">Signature et cachet</div>
+        </div>
+    </div>
+
+    {% if legal_mentions %}
+    <div class="legal">{{ legal_mentions }}</div>
+    {% endif %}
+
+</body>
+</html>
