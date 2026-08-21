@@ -23,6 +23,7 @@ import { ChatModule } from './chat/chat.module';
 
 import { CalculService } from './common/services/calcul.service';
 import { NumerotationService } from './common/services/numerotation.service';
+import { UtilisateurModule } from './utilisateur/utilisateur.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { NumerotationService } from './common/services/numerotation.service';
     PdfModule,
     DashboardModule,
     ChatModule,
+    UtilisateurModule,
   ],
   controllers: [AppController],
   providers: [AppService, CalculService, NumerotationService],

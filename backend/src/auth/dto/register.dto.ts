@@ -1,25 +1,21 @@
 import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Veuillez entrer un email valide' })
   email: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(8, {
+    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  })
   password: string;
 
-  @IsOptional()
   @IsString()
   nom?: string;
 
-  @IsOptional()
   @IsString()
   prenom?: string;
 
-  constructor(email: string, password: string, nom: string, prenom: string) {
-    this.email = email;
-    this.password = password;
-    this.nom = nom;
-    this.prenom = prenom;
-  }
+  @IsString()
+  telephone?: string;
 }

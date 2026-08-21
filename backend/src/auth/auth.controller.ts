@@ -6,6 +6,8 @@ import {
   Res,
   UseGuards,
   HttpCode,
+  HttpStatus,
+  Get,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -15,6 +17,7 @@ import { ChoisirEntrepriseDto } from './dto/choisir-entreprise.dto';
 import { Public } from './decorators/public.decorator';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthGuard } from '@nestjs/passport/dist/auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -57,6 +60,13 @@ export class AuthController {
       req,
       res,
     );
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  me(@CurrentUser() user: any) {
+    return { user };
   }
 
   /**

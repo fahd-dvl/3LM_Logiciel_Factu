@@ -34,7 +34,7 @@ export class CreateClientDto {
 
   @ApiProperty({ description: 'Téléphone du client', required: false })
   @IsOptional()
-  @IsPhoneNumber()
+  @IsString()
   telephone?: string;
 
   @ApiProperty({ description: 'Adresse du client', required: false })

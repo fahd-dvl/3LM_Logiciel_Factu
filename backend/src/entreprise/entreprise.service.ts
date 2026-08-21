@@ -27,7 +27,6 @@ export class EntrepriseService {
           ville: dto.ville,
           pays_id: dto.pays_id,
           representant_legal: dto.representant_legal,
-          logo_url: dto.logo_url,
         },
       });
     } catch (error) {

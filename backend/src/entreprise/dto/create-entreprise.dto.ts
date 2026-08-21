@@ -9,43 +9,36 @@ import { TypeStructure } from 'generated/prisma/browser';
 
 export class CreateEntrepriseDto {
   @IsEnum(TypeStructure)
-  type_structure: TypeStructure;
+  type_structure: TypeStructure; // ✅ Obligatoire
 
-  @IsOptional()
   @IsString()
   @MaxLength(200)
-  nom_entreprise?: string;
+  nom_entreprise: string; // ✅ Obligatoire (supprimé @IsOptional)
 
   @IsString()
   @MaxLength(20)
-  matricule_fiscal: string;
+  matricule_fiscal: string; // ✅ Obligatoire
 
-  @IsOptional()
+  @IsOptional() // ✅ Seul champ optionnel
   @IsString()
   @MaxLength(14)
-  siret?: string;
+  siret?: string; // ✅ Optionnel
 
   @IsString()
-  adresse: string;
+  adresse: string; // ✅ Obligatoire
 
-  @IsOptional()
   @IsString()
   @MaxLength(20)
-  code_postal?: string;
+  code_postal: string; // ✅ Obligatoire (supprimé @IsOptional)
 
   @IsString()
   @MaxLength(150)
-  ville: string;
+  ville: string; // ✅ Obligatoire
 
   @IsInt()
-  pays_id: number;
+  pays_id: number; // ✅ Obligatoire
 
-  @IsOptional()
   @IsString()
   @MaxLength(200)
-  representant_legal?: string;
-
-  @IsOptional()
-  @IsString()
-  logo_url?: string;
+  representant_legal: string; // ✅ Obligatoire (supprimé @IsOptional)
 }

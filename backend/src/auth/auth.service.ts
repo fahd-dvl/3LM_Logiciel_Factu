@@ -25,7 +25,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto, req: Request, res: Response) {
-    const { email, password, nom, prenom } = registerDto;
+    const { email, password, nom, prenom, telephone } = registerDto;
 
     const existingUser = await this.prisma.utilisateur.findUnique({
       where: { email },
@@ -43,6 +43,7 @@ export class AuthService {
         mot_de_passe_hash: passwordHash,
         nom,
         prenom,
+        telephone,
         role: 'user',
         actif: true,
       },
@@ -118,7 +119,7 @@ export class AuthService {
 
   async refreshTokens(
     userId: number,
-    entrepriseId: number | null, // ← nouveau paramètre
+    entrepriseId: number | null,
     oldRefreshToken: string,
     req: Request,
     res: Response,
@@ -129,6 +130,27 @@ export class AuthService {
 
     if (!user || !user.actif) {
       throw new UnauthorizedException('Utilisateur invalide ou inactif');
+    }
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { token: oldRefreshToken },
+    });
+
+    // Token inconnu, déjà utilisé/révoqué, ou expiré côté DB
+    if (!stored || stored.revoked || stored.expires_at < new Date()) {
+      // Réutilisation d'un token révoqué = signal probable de vol.
+      // On révoque toutes les sessions actives de l'utilisateur par précaution.
+      if (stored?.revoked) {
+        await this.prisma.refreshToken.updateMany({
+          where: { utilisateur_id: userId, revoked: false },
+          data: {
+            revoked: true,
+            revoked_at: new Date(),
+            revoked_reason: 'reuse_detected',
+          },
+        });
+      }
+      throw new UnauthorizedException('Refresh token invalide');
     }
 
     await this.prisma.refreshToken.update({
@@ -237,9 +259,10 @@ export class AuthService {
         email: user.email,
         nom: user.nom,
         prenom: user.prenom,
+        telephone: user.telephone,
         role: user.role,
       },
-      entreprise_id: entrepriseId, // ← utile pour que le frontend sache s'il doit rediriger vers "choisir une société"
+      entreprise_id: entrepriseId,
     };
   }
 }

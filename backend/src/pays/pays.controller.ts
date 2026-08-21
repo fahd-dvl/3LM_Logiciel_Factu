@@ -15,13 +15,13 @@ export class PaysController {
   constructor(private readonly paysService: PaysService) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @Public()
   findAll() {
     return this.paysService.findAll();
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @Public()
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.paysService.findOne(id);
   }
