@@ -1,0 +1,27 @@
+# ===== Node.js =====
+node_modules/
+dist/
+build/
+*.log
+
+# ===== Python (PDF Generator) =====
+venv/
+__pycache__/
+*.pyc
+*.pyo
+output/
+
+# ===== Environment Variables =====
+.env
+.env.local
+.env.production
+.env.development
+
+# ===== IDE =====
+.vscode/
+.idea/
+.DS_Store
+
+# ===== OS =====
+Thumbs.db
+desktop.ini
