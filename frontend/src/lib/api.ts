@@ -1,3 +1,4 @@
+// lib/api.ts
 import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -70,8 +71,8 @@ export interface Client {
   raison_sociale?: string;
   note?: string;
   date_creation: string;
-  pays_id: number; // ✅
-  adresse_legale?: string; // ✅
+  pays_id: number;
+  adresse_legale?: string;
 }
 
 export interface Product {
@@ -80,9 +81,10 @@ export interface Product {
   description?: string;
   prix_unitaire_ht: number;
   unite: string;
-  taux_tva: number | { taux: number };
+  taux_tva_id: number; // ✅ CHANGÉ
   type: "PRODUIT" | "SERVICE";
   actif: boolean;
+  categorie_id?: number;
 }
 
 export interface Invoice {
@@ -144,11 +146,15 @@ export interface Quote {
   statut: "BROUILLON" | "ENVOYE" | "ACCEPTE" | "REFUSE" | "EXPIRE" | "CONVERTI";
   date_creation: string;
   date_validite: string;
+  pays_id: number;
   total_ht: number;
   total_tva: number;
   total_ttc: number;
   devise: string;
-  lines?: QuoteLine[];
+  // Le backend (DevisService.findOne) inclut la relation Prisma sous le nom
+  // `devis_ligne`, pas `lines`. On garde ce nom pour matcher la vraie forme
+  // de la réponse API.
+  devis_ligne?: QuoteLine[];
 }
 
 export interface Pays {
@@ -172,6 +178,45 @@ export interface Entreprise {
   representant_legal?: string;
   logo_url?: string;
 }
+
+export interface Categorie {
+  id: number;
+  nom: string;
+  description?: string;
+  parent_id?: number | null;
+}
+
+export interface TauxTva {
+  id: number;
+  pays_id: number;
+  taux: number;
+  libelle: string;
+  date_debut: string;
+  date_fin?: string | null;
+}
+
+// ============================================
+// PAYLOADS DEVIS (forme exacte attendue par CreateDevisDto / UpdateDevisDto)
+// ============================================
+
+export interface DevisLignePayload {
+  description: string;
+  quantite: number;
+  prix_unitaire_ht: number;
+  taux_tva: number;
+  type_ligne: "PRODUIT" | "SERVICE" | "REMISE";
+  produit_id?: number;
+}
+
+export interface CreateDevisPayload {
+  client_id: number;
+  pays_id: number;
+  date_validite: string;
+  devise: string;
+  lignes: DevisLignePayload[];
+}
+
+export type UpdateDevisPayload = Partial<CreateDevisPayload>;
 
 // ============================================
 // CLIENTS API
@@ -270,11 +315,11 @@ export const quotesApi = {
     const response = await api.get<Quote>(`/devis/${id}`);
     return response.data;
   },
-  create: async (quote: Omit<Quote, "id">) => {
+  create: async (quote: CreateDevisPayload) => {
     const response = await api.post<Quote>("/devis", quote);
     return response.data;
   },
-  update: async (id: number, quote: Omit<Quote, "id">) => {
+  update: async (id: number, quote: UpdateDevisPayload) => {
     const response = await api.put<Quote>(`/devis/${id}`, quote);
     return response.data;
   },
@@ -401,6 +446,74 @@ export const entreprisesApi = {
 };
 
 // ============================================
+// CATEGORIES API
+// ============================================
+
+export const categoriesApi = {
+  getAll: async () => {
+    const response = await api.get<Categorie[]>("/categories");
+    return response.data;
+  },
+  getRoot: async () => {
+    const response = await api.get<Categorie[]>("/categories/root");
+    return response.data;
+  },
+  getChildren: async (id: number) => {
+    const response = await api.get<Categorie[]>(`/categories/${id}/children`);
+    return response.data;
+  },
+  getById: async (id: number) => {
+    const response = await api.get<Categorie>(`/categories/${id}`);
+    return response.data;
+  },
+  create: async (data: {
+    nom: string;
+    description?: string;
+    parent_id?: number;
+  }) => {
+    const response = await api.post<Categorie>("/categories", data);
+    return response.data;
+  },
+  update: async (
+    id: number,
+    data: { nom?: string; description?: string; parent_id?: number },
+  ) => {
+    const response = await api.put<Categorie>(`/categories/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: number) => {
+    await api.delete(`/categories/${id}`);
+  },
+};
+
+// ============================================
+// TAUX TVA API
+// ============================================
+
+export const tauxTvaApi = {
+  getAll: async () => {
+    const response = await api.get<TauxTva[]>("/taux-tva");
+    return response.data;
+  },
+  getByPays: async (paysId: number) => {
+    const response = await api.get<TauxTva[]>(`/taux-tva/pays/${paysId}`);
+    return response.data;
+  },
+  getByEntreprise: async () => {
+    const response = await api.get<TauxTva[]>("/taux-tva/entreprise");
+    return response.data;
+  },
+  getById: async (id: number) => {
+    const response = await api.get<TauxTva>(`/taux-tva/${id}`);
+    return response.data;
+  },
+  getDefaultByPays: async (paysId: number) => {
+    const response = await api.get<TauxTva>(`/taux-tva/pays/${paysId}/default`);
+    return response.data;
+  },
+};
+
+// ============================================
 // AUTH API
 // ============================================
 
@@ -442,7 +555,7 @@ export const authApi = {
     nom?: string;
     telephone?: string;
   }) => {
-    const response = await api.put("/auth/profil", data); // ✅ confirm this matches your backend route
+    const response = await api.put("/auth/profil", data);
     return response.data;
   },
 };

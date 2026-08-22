@@ -1,6 +1,6 @@
 // pages/EditEnterprisePage.tsx
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom"; // ✅ AJOUTER useLocation
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -50,7 +50,6 @@ const STRUCTURE_TYPES = [
   { value: "micro_entrepreneur", label: "Micro-entrepreneur" },
 ];
 
-// ✅ Mapping des types pour l'affichage
 const STRUCTURE_LABELS: Record<string, string> = {
   artisan: "Artisan",
   entreprise: "Entreprise",
@@ -61,6 +60,7 @@ const STRUCTURE_LABELS: Record<string, string> = {
 export default function EditEnterprisePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ AJOUTER
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ export default function EditEnterprisePage() {
   const [readonlyData, setReadonlyData] = useState({
     siret: "",
     matricule_fiscal: "",
-    type_structure: "", // ✅ Ajouté
+    type_structure: "",
   });
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function EditEnterprisePage() {
       setReadonlyData({
         siret: entreprise.siret || "Non renseigné",
         matricule_fiscal: entreprise.matricule_fiscal || "Non renseigné",
-        type_structure: entreprise.type_structure || "Non renseigné", // ✅ Ajouté
+        type_structure: entreprise.type_structure || "Non renseigné",
       });
     } catch (err: any) {
       setError(err.response?.data?.message || "Erreur lors du chargement");
@@ -130,7 +130,6 @@ export default function EditEnterprisePage() {
     try {
       await entreprisesApi.update(parseInt(id!), {
         nom_entreprise: formData.nom_entreprise.trim() || undefined,
-        // ❌ type_structure NON envoyé (non modifiable)
         adresse: formData.adresse.trim(),
         code_postal: formData.code_postal.trim() || undefined,
         ville: formData.ville.trim(),
@@ -141,8 +140,12 @@ export default function EditEnterprisePage() {
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
-        navigate("/choose-enterprise");
-      }, 2000);
+        // ✅ FORCER LE RECHARGEMENT DE LA PAGE CHOOSE ENTERPRISE
+        navigate("/choose-enterprise", {
+          replace: true,
+          state: { refresh: Date.now() }, // ✅ Envoyer un timestamp pour forcer le rechargement
+        });
+      }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.message || "Erreur lors de la mise à jour");
     } finally {
@@ -202,7 +205,6 @@ export default function EditEnterprisePage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* ✅ Informations non modifiables */}
           <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg mb-4 space-y-1">
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Informations non modifiables
@@ -222,7 +224,6 @@ export default function EditEnterprisePage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ✅ Nom de l'entreprise - MODIFIABLE */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Nom de l'entreprise
@@ -235,7 +236,6 @@ export default function EditEnterprisePage() {
               />
             </div>
 
-            {/* ✅ Adresse - MODIFIABLE */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Adresse
@@ -248,7 +248,6 @@ export default function EditEnterprisePage() {
               />
             </div>
 
-            {/* ✅ Code postal et Ville - MODIFIABLES */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -274,7 +273,6 @@ export default function EditEnterprisePage() {
               </div>
             </div>
 
-            {/* ✅ Pays - MODIFIABLE */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Pays
@@ -294,7 +292,6 @@ export default function EditEnterprisePage() {
               </select>
             </div>
 
-            {/* ✅ Représentant légal - MODIFIABLE */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Représentant légal

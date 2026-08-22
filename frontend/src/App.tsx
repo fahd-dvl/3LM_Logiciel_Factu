@@ -10,7 +10,12 @@ import ChooseOrCreateEnterprise from "./pages/ChooseOrCreateEnterprise";
 import ProfilPage from "./pages/ProfilPage";
 import EditEnterprisePage from "./pages/EditEnterprisePage";
 import Dashboard from "./pages/Dashboard";
-import Clients from "./pages/Clients"; // ✅ AJOUTER
+import Clients from "./pages/Clients";
+import Products from "./pages/Products";
+import Invoices from "./pages/Invoices";
+import InvoiceForm from "./pages/InvoiceForm";
+import Quotes from "./pages/Quotes"; // ✅ AJOUTER
+import QuoteForm from "./pages/QuoteForm"; // ✅ AJOUTER
 
 function App() {
   return (
@@ -48,7 +53,18 @@ function App() {
                 element={<EditEnterprisePage />}
               />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="clients" element={<Clients />} /> {/* ✅ AJOUTER */}
+              <Route path="clients" element={<Clients />} />
+              <Route path="products" element={<Products />} />
+
+              {/* ✅ ROUTES FACTURES */}
+              <Route path="invoices" element={<Invoices />} />
+              <Route path="invoices/new" element={<InvoiceForm />} />
+              <Route path="invoices/:id/edit" element={<InvoiceForm />} />
+
+              {/* ✅ ROUTES DEVIS */}
+              <Route path="quotes" element={<Quotes />} />
+              <Route path="quotes/new" element={<QuoteForm />} />
+              <Route path="quotes/:id/edit" element={<QuoteForm />} />
             </Route>
 
             {/* REDIRECTS */}

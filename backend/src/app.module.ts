@@ -24,6 +24,12 @@ import { ChatModule } from './chat/chat.module';
 import { CalculService } from './common/services/calcul.service';
 import { NumerotationService } from './common/services/numerotation.service';
 import { UtilisateurModule } from './utilisateur/utilisateur.module';
+import { TauxTvaService } from './taux-tva/taux-tva.service';
+import { TauxTvaController } from './taux-tva/taux-tva.controller';
+import { TauxTvaModule } from './taux-tva/taux-tva.module';
+import { CategorieService } from './categorie/categorie.service';
+import { CategorieController } from './categorie/categorie.controller';
+import { CategorieModule } from './categorie/categorie.module';
 
 @Module({
   imports: [
@@ -46,8 +52,10 @@ import { UtilisateurModule } from './utilisateur/utilisateur.module';
     DashboardModule,
     ChatModule,
     UtilisateurModule,
+    TauxTvaModule,
+    CategorieModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, CalculService, NumerotationService],
+  controllers: [AppController, TauxTvaController, CategorieController],
+  providers: [AppService, CalculService, NumerotationService, TauxTvaService, CategorieService],
 })
 export class AppModule {}

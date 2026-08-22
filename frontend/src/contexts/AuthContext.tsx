@@ -1,3 +1,4 @@
+// contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { authApi } from "../lib/api";
 
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ✅ Login avec message d'erreur personnalisé
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
@@ -113,8 +115,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: response.user.role,
         entreprise_id: response.entreprise_id ?? null,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur de connexion");
+    } catch (err: any) {
+      // ✅ Gestion des erreurs avec message personnalisé
+      console.error("🔴 Login error:", err);
+
+      let errorMessage = "Erreur de connexion";
+
+      // ✅ Vérifier si c'est une erreur 401 (mauvais identifiants)
+      if (err.response?.status === 401) {
+        errorMessage = "Email ou mot de passe incorrect";
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -155,18 +171,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const response = await authApi.updateProfile(data);
-
-      // Mettre à jour l'utilisateur dans le state
       const updatedUser: User = {
         ...user!,
         prenom: data.prenom ?? user?.prenom,
         nom: data.nom ?? user?.nom,
         telephone: data.telephone ?? user?.telephone,
       };
-
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
       return response;
     } catch (err) {
       const errorMessage =
